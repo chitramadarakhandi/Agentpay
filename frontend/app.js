@@ -919,7 +919,62 @@ let voiceRecognition = null;
 let isListening = false;
 window.isAutoVoiceEnabled = false;
 
-// ── 🎙️ Text-To-Speech (TTS) Voice Synthesis ──
+// ── 🎙️ Multilingual Text-To-Speech (TTS) Voice Synthesis ──
+let cachedVoices = [];
+
+function loadVoices() {
+  if (!('speechSynthesis' in window)) return [];
+  const voices = window.speechSynthesis.getVoices();
+  if (voices && voices.length) {
+    cachedVoices = voices;
+  }
+  return cachedVoices;
+}
+
+if ('speechSynthesis' in window) {
+  loadVoices();
+  window.speechSynthesis.onvoiceschanged = () => {
+    loadVoices();
+  };
+}
+
+function findBestVoice(lang) {
+  const voices = loadVoices().length ? loadVoices() : ('speechSynthesis' in window ? window.speechSynthesis.getVoices() : []);
+  if (!voices || !voices.length) return null;
+
+  const target = (lang || getLang() || 'en').toLowerCase();
+
+  if (target === 'kn') {
+    // 1. Exact Kannada match
+    const knVoice = voices.find(v => (v.lang && (v.lang.toLowerCase().startsWith('kn') || v.lang.toLowerCase().includes('kannada'))) || (v.name && v.name.toLowerCase().includes('kannada')));
+    if (knVoice) return { voice: knVoice, lang: knVoice.lang || 'kn-IN' };
+
+    // 2. Hindi Natural Voice (Handles Indic script & phonetics exceptionally well)
+    const hiVoice = voices.find(v => (v.lang && (v.lang.toLowerCase().startsWith('hi') || v.lang.toLowerCase().includes('hindi'))) || (v.name && (v.name.toLowerCase().includes('hindi') || v.name.toLowerCase().includes('swara') || v.name.toLowerCase().includes('hemant') || v.name.toLowerCase().includes('madhur') || v.name.includes('हिन्दी'))));
+    if (hiVoice) return { voice: hiVoice, lang: hiVoice.lang || 'hi-IN' };
+
+    // 3. Indian English
+    const inVoice = voices.find(v => v.lang && (v.lang.toLowerCase() === 'en-in' || v.name.toLowerCase().includes('india') || v.name.toLowerCase().includes('swara') || v.name.toLowerCase().includes('neerja')));
+    if (inVoice) return { voice: inVoice, lang: inVoice.lang || 'en-IN' };
+  } else if (target === 'hi') {
+    // 1. Exact Hindi match
+    const hiVoice = voices.find(v => (v.lang && (v.lang.toLowerCase().startsWith('hi') || v.lang.toLowerCase().includes('hindi'))) || (v.name && (v.name.toLowerCase().includes('hindi') || v.name.toLowerCase().includes('swara') || v.name.toLowerCase().includes('hemant') || v.name.toLowerCase().includes('madhur') || v.name.includes('हिन्दी'))));
+    if (hiVoice) return { voice: hiVoice, lang: hiVoice.lang || 'hi-IN' };
+
+    // 2. Indian English
+    const inVoice = voices.find(v => v.lang && (v.lang.toLowerCase() === 'en-in' || v.name.toLowerCase().includes('india')));
+    if (inVoice) return { voice: inVoice, lang: inVoice.lang || 'en-IN' };
+  } else {
+    // English
+    const enInVoice = voices.find(v => v.lang && (v.lang.toLowerCase() === 'en-in' || v.name.toLowerCase().includes('india')));
+    if (enInVoice) return { voice: enInVoice, lang: enInVoice.lang || 'en-IN' };
+    const enVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+    if (enVoice) return { voice: enVoice, lang: enVoice.lang || 'en-US' };
+  }
+
+  return voices.length ? { voice: voices[0], lang: voices[0].lang || 'en-US' } : null;
+}
+
 window.toggleAutoVoice = function() {
   window.isAutoVoiceEnabled = !window.isAutoVoiceEnabled;
   const btn = document.getElementById('btn-auto-voice');
@@ -927,30 +982,70 @@ window.toggleAutoVoice = function() {
     btn.classList.toggle('active', window.isAutoVoiceEnabled);
     btn.innerHTML = window.isAutoVoiceEnabled ? '🔊 Voice TTS: ON' : '🔈 Voice TTS: OFF';
   }
-  showToast(window.isAutoVoiceEnabled ? 'AI Voice Speech Synthesis Activated' : 'Voice Speech Deactivated', 'info');
+  if (window.isAutoVoiceEnabled) {
+    const welcome = getLang() === 'kn'
+      ? 'ನಮಸ್ಕಾರ! AI ಧ್ವನಿ ಸಹಾಯಕ ಸಕ್ರಿಯಗೊಂಡಿದೆ. ನಾನು ನಿಮ್ಮ ಶಾಪಿಂಗ್ ಏಜೆಂಟ್.'
+      : getLang() === 'hi'
+      ? 'नमस्ते! AI वॉइस असिस्टेंट सक्रिय हो गया है। मैं आपका शॉपिंग एजेंट हूँ।'
+      : 'Hello! AI Voice Assistant is now active. I am your shopping agent.';
+    showToast(welcome, 'success');
+    window.speakText(welcome);
+  } else {
+    showToast('Voice Speech Deactivated', 'info');
+  }
 };
 
 window.speakText = function(text) {
   if (!('speechSynthesis' in window)) return;
   try {
     window.speechSynthesis.cancel();
-    const clean = text.replace(/<[^>]*>?/gm, ' ').replace(/₹/g, 'Rupees ').replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const curLang = getLang();
+    let clean = (text || '')
+      .replace(/<[^>]*>?/gm, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/⭐/g, ' ')
+      .replace(/📦/g, ' ')
+      .replace(/🚚/g, ' ')
+      .replace(/🤖/g, ' ')
+      .replace(/₹/g, curLang === 'kn' ? 'ರೂಪಾಯಿ ' : curLang === 'hi' ? 'रुपये ' : 'Rupees ')
+      .replace(/[\n\r\t]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
     if (!clean) return;
 
     const utterance = new SpeechSynthesisUtterance(clean);
-    const curLang = getLang();
     utterance.lang = curLang === 'kn' ? 'kn-IN' : curLang === 'hi' ? 'hi-IN' : 'en-IN';
-    utterance.rate = 0.95;
+    utterance.rate = 0.92;
     utterance.pitch = 1.0;
 
     const voices = window.speechSynthesis.getVoices();
-    const match = voices.find(v => v.lang && (v.lang.startsWith(curLang) || v.lang.includes(curLang)));
-    if (match) utterance.voice = match;
+    if (voices && voices.length) {
+      const match = voices.find(v => v.lang && (v.lang.toLowerCase().startsWith(curLang) || v.lang.toLowerCase().includes(curLang)));
+      if (match) {
+        utterance.voice = match;
+      }
+    }
 
     window.speechSynthesis.speak(utterance);
   } catch (err) {
     console.warn('Speech synthesis error:', err);
   }
+};
+
+window.speakTextMessage = function(btn) {
+  const msgCard = btn.closest('.chat-message');
+  if (!msgCard) return;
+  const clone = msgCard.cloneNode(true);
+  const btnInClone = clone.querySelector('.btn-voice-speak');
+  if (btnInClone) btnInClone.remove();
+  const labelInClone = clone.querySelector('.msg-label');
+  if (labelInClone) labelInClone.remove();
+  const text = clone.innerText || clone.textContent || '';
+  window.speakText(text);
 };
 
 // ── 📱 Razorpay UPI QR Code Modal ──
@@ -1136,65 +1231,53 @@ function initVoiceInput() {
   if (!SpeechRecognition) return null;
   const recognition = new SpeechRecognition();
   recognition.continuous = false;
-  recognition.interimResults = true;
-  recognition.lang = getVoiceLangCode();
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
   return recognition;
 }
 
 window.toggleVoiceInput = function() {
   const micBtn = document.getElementById('chat-mic-btn');
-  const input = document.getElementById('chat-input');
   const statusEl = document.getElementById('voice-status');
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const input = document.getElementById('chat-input');
 
-  if (!SpeechRecognition) {
-    showToast('Voice input is not supported in this browser. Please use Chrome, Edge, or Safari.', 'error');
-    return;
-  }
-
-  if (isListening && voiceRecognition) {
-    voiceRecognition.stop();
+  if (isListening) {
+    if (voiceRecognition) voiceRecognition.stop();
     isListening = false;
     if (micBtn) micBtn.classList.remove('listening');
     if (statusEl) statusEl.style.display = 'none';
     return;
   }
 
-  try {
+  if (!voiceRecognition) {
     voiceRecognition = initVoiceInput();
-    if (!voiceRecognition) return;
+  }
 
-    voiceRecognition.onstart = () => {
-      isListening = true;
-      if (micBtn) micBtn.classList.add('listening');
-      if (statusEl) {
-        statusEl.style.display = 'flex';
-        const langName = getLang() === 'kn' ? 'ಕನ್ನಡ' : getLang() === 'hi' ? 'हिन्दी' : 'English';
-        statusEl.innerHTML = `
-          <div class="voice-wave"><span></span><span></span><span></span></div>
-          <span>${t('voiceListening')} <strong>${langName}</strong>…</span>
-        `;
-      }
-    };
+  if (!voiceRecognition) {
+    showToast('Speech Recognition not supported in this browser. Please use Chrome or Edge.', 'error');
+    return;
+  }
+
+  try {
+    voiceRecognition.lang = getVoiceLangCode();
+    isListening = true;
+    if (micBtn) micBtn.classList.add('listening');
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.innerHTML = `<span class="pulse-dot"></span> ${t('voiceListening')} <strong>${getLang().toUpperCase()}</strong> (${voiceRecognition.lang})…`;
+    }
 
     voiceRecognition.onresult = (event) => {
-      let transcript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        transcript += event.results[i][0].transcript;
-      }
-      if (input && transcript) {
-        input.value = transcript;
-      }
+      const transcript = event.results[0][0].transcript;
+      if (input) input.value = transcript;
     };
 
     voiceRecognition.onerror = (event) => {
-      console.warn('Voice recognition error:', event.error);
+      console.warn('Voice error:', event.error);
       isListening = false;
       if (micBtn) micBtn.classList.remove('listening');
       if (statusEl) statusEl.style.display = 'none';
-      if (event.error !== 'no-speech') {
-        showToast('Microphone error: ' + event.error, 'error');
-      }
+      showToast(`Voice input error: ${event.error}`, 'error');
     };
 
     voiceRecognition.onend = () => {
@@ -1232,7 +1315,10 @@ async function renderAgent() {
       <div class="chat-messages" id="chat-messages">
         ${chatMessages.length === 0
           ? `<div class="chat-message system">
-               <div class="msg-label">🤖 AgentPay AI</div>
+               <div class="msg-label" style="display:flex;justify-content:space-between;align-items:center">
+                 <span>🤖 AgentPay AI</span>
+                 <button type="button" class="btn-voice-speak" onclick="window.speakTextMessage(this)" style="background:rgba(167,139,250,0.15);border:1px solid var(--accent-purple);color:var(--accent-purple);border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer">🔊 Listen</button>
+               </div>
                ${getLang() === 'kn'
                  ? 'ನಮಸ್ಕಾರ! ನಾನು ನಿಮ್ಮ AI ಖರೀದಿದಾರ ಏಜೆಂಟ್. ನೀವು ಖರೀದಿಸಲು ಬಯಸುವ ಉತ್ಪನ್ನವನ್ನು ಧ್ವನಿ ಅಥವಾ ಟೈಪ್ ಮೂಲಕ ತಿಳಿಸಿ (ಉದಾ: "70000 ರೂಪಾಯಿ ಒಳಗೆ ಲ್ಯಾಪ್‌ಟಾಪ್"). ನಾನು ಎಲ್ಲಾ ವ್ಯಾಪಾರಿಗಳಲ್ಲಿ ಹುಡುಕಿ ಬೆಲೆ ಚೌಕಾಶಿ ಮಾಡುತ್ತೇನೆ.'
                  : getLang() === 'hi'
@@ -1240,7 +1326,7 @@ async function renderAgent() {
                  : "Hello! I'm your AI Buyer Agent. Tell me or speak what you'd like to purchase and I'll find, compare, negotiate discounts, and enforce your spending limits across all merchants."
                }
              </div>`
-          : chatMessages.map(m => `<div class="chat-message ${m.role}">${m.role === 'system' ? '<div class="msg-label">🤖 AgentPay AI</div>' : ''}${m.html}</div>`).join('')
+          : chatMessages.map(m => `<div class="chat-message ${m.role}">${m.role === 'system' ? '<div class="msg-label" style="display:flex;justify-content:space-between;align-items:center"><span>🤖 AgentPay AI</span><button type="button" class="btn-voice-speak" onclick="window.speakTextMessage(this)" style="background:rgba(167,139,250,0.15);border:1px solid var(--accent-purple);color:var(--accent-purple);border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer">🔊 Listen</button></div>' : ''}${m.html}</div>`).join('')
         }
       </div>
       <div class="chat-input-area">
@@ -1394,8 +1480,23 @@ async function sendChatMessage() {
   }
 
   chatMessages.push({ role: 'system', html: responseHtml });
-  container.innerHTML += `<div class="chat-message system"><div class="msg-label">🤖 AgentPay AI</div>${responseHtml}</div>`;
+  container.innerHTML += `<div class="chat-message system">
+    <div class="msg-label" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🤖 AgentPay AI</span>
+      <button type="button" class="btn-voice-speak" onclick="window.speakTextMessage(this)" style="background:rgba(167,139,250,0.15);border:1px solid var(--accent-purple);color:var(--accent-purple);border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer">🔊 Listen</button>
+    </div>
+    ${responseHtml}
+  </div>`;
   container.scrollTop = container.scrollHeight;
+
+  if (window.isAutoVoiceEnabled) {
+    if (top.length) {
+      const speechSummary = `${t('foundProducts')}. 1. ${top[0].name} at ${formatPrice(top[0].price)}`;
+      window.speakText(speechSummary);
+    } else {
+      window.speakText(t('noProductsFound'));
+    }
+  }
 }
 
 // ── Interactive Agent Negotiation & Order Handler ──
@@ -1404,11 +1505,18 @@ window.startAgentNegotiation = async function(merchantId, productId, productName
   if (!container) return;
 
   const initMsg = `<div class="chat-message system">
-    <div class="msg-label">🤖 Buyer Agent</div>
-    ${t('negotiatingWithMerchant')} <strong>${productName}</strong> (Original: ${formatPrice(originalPrice)}). ${t('requestingDiscount')}
+    <div class="msg-label" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🤖 Buyer Agent</span>
+      <button type="button" class="btn-voice-speak" onclick="window.speakTextMessage(this)" style="background:rgba(167,139,250,0.15);border:1px solid var(--accent-purple);color:var(--accent-purple);border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer">🔊 Listen</button>
+    </div>
+    ${t('negotiatingWithMerchant')} <strong>${productName}</strong> (${t('originalPrice')}: ${formatPrice(originalPrice)}). ${t('requestingDiscount')}
   </div>`;
   container.innerHTML += initMsg;
   container.scrollTop = container.scrollHeight;
+
+  if (window.isAutoVoiceEnabled) {
+    window.speakText(`${t('negotiatingWithMerchant')} ${productName}. ${t('requestingDiscount')}`);
+  }
 
   const negRes = await api(`/merchants/${merchantId}/negotiate`, {
     method: 'POST',
@@ -1424,18 +1532,51 @@ window.startAgentNegotiation = async function(merchantId, productId, productName
     return;
   }
 
-  const merchantMsg = `<div class="chat-message system">
-    <div class="msg-label">🏪 ${negRes.merchant_name} Agent</div>
-    ${negRes.merchant_message}<br>
-    <strong>${t('finalPrice')}: ${formatPrice(negRes.final_price)}</strong> <span style="color:var(--accent-green)">(${t('saved')} ${formatPrice(negRes.discount_amount)} / ${negRes.approved_discount_percent}% off)</span>
+  const merchantMsg = `<div class="chat-message system" style="border-left:3px solid var(--accent-purple);background:rgba(167,139,250,0.04)" id="quote-card-${negRes.quote_id}">
+    <div class="msg-label" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🏪 ${negRes.merchant_name} Agent</span>
+      <button type="button" class="btn-voice-speak" onclick="window.speakTextMessage(this)" style="background:rgba(167,139,250,0.15);border:1px solid var(--accent-purple);color:var(--accent-purple);border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer">🔊 Listen</button>
+    </div>
+    ${negRes.merchant_message}<br><br>
+    <div style="background:rgba(255,255,255,0.03);padding:12px;border-radius:8px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.08)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span>${t('originalPrice')}:</span>
+        <del style="color:var(--text-muted)">${formatPrice(originalPrice)}</del>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <span>${t('approvedDiscount')}:</span>
+        <span style="color:var(--accent-green);font-weight:700">-${negRes.approved_discount_percent}% (${formatPrice(negRes.discount_amount)})</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:1px dashed rgba(255,255,255,0.1);font-size:1.1rem;font-weight:800;color:var(--accent-purple)">
+        <span>${t('finalPrice')}:</span>
+        <span>${formatPrice(negRes.final_price)}</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-primary" style="font-size:0.85rem;padding:8px 16px" onclick="window.acceptQuoteAndOrder('${negRes.quote_id}', ${negRes.final_price}, '${productName.replace(/'/g, "\\'")}')">
+        ✅ ${t('acceptQuoteAndOrder')}
+      </button>
+      <button class="btn-secondary" style="font-size:0.85rem;padding:8px 14px" onclick="this.closest('.chat-message').innerHTML+='<br><span style=\\'color:var(--text-muted);font-size:0.8rem\\'>${t('declineQuote')}.</span>'">
+        ❌ ${t('declineQuote')}
+      </button>
+    </div>
   </div>`;
   container.innerHTML += merchantMsg;
   container.scrollTop = container.scrollHeight;
 
+  if (window.isAutoVoiceEnabled) {
+    window.speakText(`${negRes.merchant_message}. ${t('finalPrice')}: ${formatPrice(negRes.final_price)}`);
+  }
+};
+
+window.acceptQuoteAndOrder = async function(quoteId, finalPrice, productName) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+
   const orderRes = await api('/orders', {
     method: 'POST',
     body: JSON.stringify({
-      quote_id: negRes.quote_id,
+      quote_id: quoteId,
       user_id: 'demo-user-001',
       session_id: 'chat-session-001',
     }),
@@ -1450,7 +1591,10 @@ window.startAgentNegotiation = async function(merchantId, productId, productName
     const threshold = orderRes.metadata_json?.approval_threshold || 50000;
     const excess = Math.max(0, orderRes.amount - threshold);
     const gateHtml = `<div class="chat-message system" style="border-left:3px solid var(--accent-amber);background:rgba(251,191,36,0.05)">
-      <div class="msg-label">🛡️ Policy Engine Gate</div>
+      <div class="msg-label" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🛡️ Policy Engine Gate</span>
+        <button type="button" class="btn-voice-speak" onclick="window.speakTextMessage(this)" style="background:rgba(167,139,250,0.15);border:1px solid var(--accent-purple);color:var(--accent-purple);border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer">🔊 Listen</button>
+      </div>
       <strong style="color:var(--accent-amber)">${t('orderPendingApproval')}</strong><br>
       ${t('orderPendingDesc')} <strong>${formatPrice(threshold)}</strong> (${t('excessOverLimit')}: +${formatPrice(excess)}).<br>
       <span style="font-size:0.82rem;color:var(--text-muted)">${t('securityToken')}: <code>${orderRes.metadata_json?.approval_token || 'N/A'}</code></span>
@@ -1460,15 +1604,24 @@ window.startAgentNegotiation = async function(merchantId, productId, productName
       </div>
     </div>`;
     container.innerHTML += gateHtml;
+    if (window.isAutoVoiceEnabled) {
+      window.speakText(`${t('orderPendingApproval')}. Amount ${formatPrice(finalPrice)} exceeds approval threshold of ${formatPrice(threshold)}`);
+    }
   } else {
     const approvedHtml = `<div class="chat-message system" style="border-left:3px solid var(--accent-green);background:rgba(16,185,129,0.05)">
-      <div class="msg-label">${t('orderAutoApproved')}</div>
+      <div class="msg-label" style="display:flex;justify-content:space-between;align-items:center">
+        <span>${t('orderAutoApproved')}</span>
+        <button type="button" class="btn-voice-speak" onclick="window.speakTextMessage(this)" style="background:rgba(167,139,250,0.15);border:1px solid var(--accent-purple);color:var(--accent-purple);border-radius:6px;padding:3px 8px;font-size:0.75rem;cursor:pointer">🔊 Listen</button>
+      </div>
       Order <strong>${orderRes.id.slice(0, 8)}</strong> for <strong>${formatPrice(orderRes.amount)}</strong> is within your autonomous spending limit.<br>
       <div style="margin-top:10px">
         <button class="btn-primary" style="font-size:0.82rem;padding:6px 14px" onclick="window.launchRazorpayPayment('${orderRes.id}')">${t('payRazorpay')}</button>
       </div>
     </div>`;
     container.innerHTML += approvedHtml;
+    if (window.isAutoVoiceEnabled) {
+      window.speakText(`${t('orderAutoApproved')}. Ready for payment.`);
+    }
   }
   container.scrollTop = container.scrollHeight;
 };
@@ -2593,6 +2746,7 @@ async function init() {
     langSelect.value = getLang();
     langSelect.addEventListener('change', (e) => {
       setLang(e.target.value);
+      chatMessages = []; // Reset chat history so welcome and responses match new language
       handleRoute();
     });
   }

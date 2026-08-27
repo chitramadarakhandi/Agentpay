@@ -1,11 +1,21 @@
 """Audit trail routes."""
 
+import uuid
+import hashlib
+from datetime import datetime, timezone
+from typing import Optional
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_db
 from app.audit.audit_service import AuditService
 
 router = APIRouter()
+
+
+class AttackSimulateRequest(BaseModel):
+    attack_type: str = "collusion"  # 'collusion' | 'replay' | 'prompt_injection'
 
 
 @router.get("/sessions/recent")
@@ -16,22 +26,39 @@ async def list_recent_sessions(db: AsyncSession = Depends(get_db)):
     return {"sessions": sessions, "count": len(sessions)}
 
 
-@router.get("/{session_id}")
-async def get_audit_trail(session_id: str, db: AsyncSession = Depends(get_db)):
-    """Get full audit trail for a session."""
+@router.get("/compliance-certificate")
+async def get_compliance_certificate(db: AsyncSession = Depends(get_db)):
+    """Generate cryptographic SOC-2 / RBI compliance certificate data."""
     audit = AuditService(db)
-    trail = await audit.get_session_trail(session_id)
-    return trail
+    logs = await audit.get_recent_logs(limit=200)
+    violations = await audit.get_violations(limit=50)
+    
+    timestamp = datetime.now(timezone.utc).isoformat()
+    raw_signature_payload = f"AGENTPAY_AUDIT_REPORT|{timestamp}|{len(logs)}|{len(violations)}|ZERO_LEAKAGE"
+    cert_hash = hashlib.sha256(raw_signature_payload.encode()).hexdigest().upper()
 
+    return {
+        "certificate_id": f"CERT-AP-{uuid.uuid4().hex[:8].upper()}",
+        "issued_at": timestamp,
+        "system_name": "AgentPay Autonomous Commerce Engine v1.0.0",
+        "compliance_frameworks": [
+            "SOC-2 Type II (Security & Confidentiality)",
+            "RBI Digital Lending / Automated Payout Guidelines",
+            "ISO/IEC 27001 Information Security Management",
+            "Mathematical Money Conservation (Invariance: Zero Drift)"
+        ],
+        "metrics": {
+            "total_audit_events": len(logs),
+            "blocked_adversarial_attempts": len(violations),
+            "money_conservation_status": "VERIFIED (Drift = ₹0.00)",
+            "idempotency_coverage": "100% (HMAC-SHA256)",
+            "deterministic_guardrail_coverage": "100%",
+        },
+        "cryptographic_hash": cert_hash,
+        "signature_algorithm": "HMAC-SHA256",
+        "issuer": "AgentPay Autonomous Security & Invariant Auditor (SOC)",
+    }
 
-import uuid
-import hashlib
-from datetime import datetime, timezone
-from typing import Optional
-from pydantic import BaseModel
-
-class AttackSimulateRequest(BaseModel):
-    attack_type: str = "collusion"  # 'collusion' | 'replay' | 'prompt_injection'
 
 @router.post("/simulate-attack")
 async def simulate_attack(req: AttackSimulateRequest, db: AsyncSession = Depends(get_db)):
@@ -150,36 +177,26 @@ async def simulate_attack(req: AttackSimulateRequest, db: AsyncSession = Depends
     }
 
 
-@router.get("/compliance-certificate")
-async def get_compliance_certificate(db: AsyncSession = Depends(get_db)):
-    """Generate cryptographic SOC-2 / RBI compliance certificate data."""
+@router.get("/{session_id}/chain")
+async def get_audit_chain(session_id: str, db: AsyncSession = Depends(get_db)):
+    """Get the normalized transaction kill chain for a session."""
     audit = AuditService(db)
-    logs = await audit.get_recent_logs(limit=200)
-    violations = await audit.get_violations(limit=50)
-    
-    timestamp = datetime.now(timezone.utc).isoformat()
-    raw_signature_payload = f"AGENTPAY_AUDIT_REPORT|{timestamp}|{len(logs)}|{len(violations)}|ZERO_LEAKAGE"
-    cert_hash = hashlib.sha256(raw_signature_payload.encode()).hexdigest().upper()
+    return await audit.get_session_chain(session_id)
 
-    return {
-        "certificate_id": f"CERT-AP-{uuid.uuid4().hex[:8].upper()}",
-        "issued_at": timestamp,
-        "system_name": "AgentPay Autonomous Commerce Engine v1.0.0",
-        "compliance_frameworks": [
-            "SOC-2 Type II (Security & Confidentiality)",
-            "RBI Digital Lending / Automated Payout Guidelines",
-            "ISO/IEC 27001 Information Security Management",
-            "Mathematical Money Conservation (Invariance: Zero Drift)"
-        ],
-        "metrics": {
-            "total_audit_events": len(logs),
-            "blocked_adversarial_attempts": len(violations),
-            "money_conservation_status": "VERIFIED (Drift = ₹0.00)",
-            "idempotency_coverage": "100% (HMAC-SHA256)",
-            "deterministic_guardrail_coverage": "100%",
-        },
-        "cryptographic_hash": cert_hash,
-        "signature_algorithm": "HMAC-SHA256",
-        "issuer": "AgentPay Autonomous Security & Invariant Auditor (SOC)",
-    }
+
+@router.get("/{session_id}")
+async def get_audit_trail(session_id: str, db: AsyncSession = Depends(get_db)):
+    """Get full audit trail for a session."""
+    audit = AuditService(db)
+    trail = await audit.get_session_trail(session_id)
+    return trail
+
+
+@router.get("")
+async def list_audit_events(db: AsyncSession = Depends(get_db)):
+    """List recent audit events across all sessions."""
+    audit = AuditService(db)
+    logs = await audit.get_recent_logs(limit=100)
+    return {"audit_logs": logs, "count": len(logs)}
+
 
