@@ -18,6 +18,18 @@
       <span class="brand-text">AgentPay</span>
     </div>
 
+    <!-- Active User & Role Widget -->
+    <div class="user-role-card" id="sidebar-user-card" onclick="window.location.hash='#/login'" title="Click to Switch Role / Sign In">
+      <div class="user-avatar" id="sidebar-user-avatar">👤</div>
+      <div class="user-role-info">
+        <div class="user-name" id="sidebar-user-name">Arjun Mehta</div>
+        <div class="user-role-badge" id="sidebar-user-badge">AI Buyer</div>
+      </div>
+      <button type="button" class="btn-role-switch" id="sidebar-role-btn" title="Switch Role / Sign In" onclick="event.stopPropagation();window.location.hash='#/login'">
+        🔄
+      </button>
+    </div>
+
     <!-- Language Selector Dropdown -->
     <div class="lang-selector-box">
       <label for="lang-select" class="lang-label">🌐 Language / ಭಾಷೆ / भाषा</label>
@@ -29,6 +41,9 @@
     </div>
 
     <ul class="nav-links">
+      <li><a href="#/login" data-page="login" class="nav-link" id="nav-login">
+        <span class="nav-icon">🔑</span><span class="nav-label" id="nav-label-login">Access Portal</span>
+      </a></li>
       <li><a href="#/" data-page="dashboard" class="nav-link active" id="nav-dashboard">
         <span class="nav-icon">📊</span><span class="nav-label" id="nav-label-dashboard">Dashboard</span>
       </a></li>

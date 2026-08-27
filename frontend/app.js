@@ -97,9 +97,105 @@ function renderKillChain(chain) {
   </section>`;
 }
 
+// ════════════════════════════════════════════════════════
+// ROLE-BASED AUTHENTICATION & DEMO PERSONAS
+// ════════════════════════════════════════════════════════
+
+export const DEMO_ACCOUNTS = {
+  'buyer@agentpay.dev': {
+    email: 'buyer@agentpay.dev',
+    password: 'buyer123',
+    name: 'Arjun Mehta',
+    role: 'buyer',
+    roleLabel: 'AI Buyer / Customer',
+    roleBadge: 'AI BUYER',
+    avatar: '👤',
+    tag: 'CONSUMER AGENT',
+    budget_limit: 80000.0,
+    daily_limit: 150000.0,
+    daily_spent: 0.0,
+    scopes: ['AI Voice & Natural Language Shopping', 'Personal Spending & Budget Limits', 'Real-Time Refund Center', 'Automated Razorpay Checkout'],
+    description: 'Empowers consumers to search products, negotiate discounts with AI agents, and enforce personal spending limits.'
+  },
+  'merchant@agentpay.dev': {
+    email: 'merchant@agentpay.dev',
+    password: 'merchant123',
+    name: 'TechNova Store Admin',
+    role: 'merchant',
+    roleLabel: 'TechNova Electronics (Merchant)',
+    roleBadge: 'MERCHANT STORE',
+    avatar: '🏪',
+    tag: 'STORE OWNER',
+    merchant_id: 'merchant-technova',
+    store_name: 'TechNova Electronics',
+    max_discount: 10.0,
+    auto_discount: 5.0,
+    scopes: ['Store Policy & Autonomous Discount Boundaries', 'High-Value Order Approvals (>₹50k)', 'Merchant Refund Decision Desk', 'Real-Time Inventory Overview'],
+    description: 'Empowers merchants to configure autonomous discount guardrails and sign off on high-value transactions and customer refunds.'
+  },
+  'auditor@agentpay.dev': {
+    email: 'auditor@agentpay.dev',
+    password: 'auditor123',
+    name: 'Security & Compliance Officer',
+    role: 'auditor',
+    roleLabel: 'Security & Compliance Auditor',
+    roleBadge: 'SOC AUDITOR',
+    avatar: '🛡️',
+    tag: 'SECURITY / SOC',
+    scopes: ['10-Stage Neural Kill Chain Graph', 'Mathematical Money Conservation Proofs', 'Collision & Replay Attack Defense Logs', 'HMAC Webhook Audit Trails'],
+    description: 'Empowers security teams to verify financial integrity, collision resistance, and zero-leakage transaction pipelines.'
+  }
+};
+
+export function getAuthUser() {
+  const saved = localStorage.getItem('agentpay_auth_user');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.email && DEMO_ACCOUNTS[parsed.email]) {
+        return DEMO_ACCOUNTS[parsed.email];
+      }
+    } catch (e) {}
+  }
+  return DEMO_ACCOUNTS['buyer@agentpay.dev'];
+}
+
+export function setAuthUser(user) {
+  localStorage.setItem('agentpay_auth_user', JSON.stringify(user));
+  updateUserUI();
+}
+
+export function updateUserUI() {
+  const user = getAuthUser();
+  const avatarEl = document.getElementById('sidebar-user-avatar');
+  const nameEl = document.getElementById('sidebar-user-name');
+  const badgeEl = document.getElementById('sidebar-user-badge');
+
+  if (avatarEl) avatarEl.textContent = user.avatar;
+  if (nameEl) nameEl.textContent = user.name;
+  if (badgeEl) badgeEl.textContent = user.roleBadge;
+}
+
+window.loginWithRole = function(roleKey) {
+  let target = DEMO_ACCOUNTS['buyer@agentpay.dev'];
+  if (roleKey === 'merchant') target = DEMO_ACCOUNTS['merchant@agentpay.dev'];
+  if (roleKey === 'auditor') target = DEMO_ACCOUNTS['auditor@agentpay.dev'];
+  
+  setAuthUser(target);
+  showToast(`Logged in as ${target.name} (${target.roleLabel})`, 'success');
+  window.location.hash = '#/';
+};
+
+window.logoutUser = function() {
+  localStorage.removeItem('agentpay_auth_user');
+  showToast('Signed out. Reset to Demo Buyer.', 'info');
+  window.location.hash = '#/login';
+};
+
 // ── Update Navigation Text on Language Switch ──
 function updateNavTranslations() {
   const el = (id) => document.getElementById(id);
+  if (el('nav-label-login')) el('nav-label-login').textContent = t('navLogin') || 'Access Portal';
   if (el('nav-label-dashboard')) el('nav-label-dashboard').textContent = t('navDashboard');
   if (el('nav-label-merchants')) el('nav-label-merchants').textContent = t('navMerchants');
   if (el('nav-label-agent')) el('nav-label-agent').textContent = t('navAgent');
@@ -108,51 +204,215 @@ function updateNavTranslations() {
   if (el('nav-label-kill-chain')) el('nav-label-kill-chain').textContent = t('navKillChain');
   if (el('nav-label-refunds')) el('nav-label-refunds').textContent = t('navRefunds');
   if (el('nav-label-refunds-merchant')) el('nav-label-refunds-merchant').textContent = t('navMerchantRefunds');
+  updateUserUI();
 }
 
 
 // ════════════════════════════════════════════════════════
-// PAGES
+// PAGES & ROLE-TAILORED DASHBOARDS
 // ════════════════════════════════════════════════════════
 
-// ── Dashboard ──
+// ── Access Portal / Role Login Page ──
+async function renderLoginPage() {
+  const currentUser = getAuthUser();
+
+  app.innerHTML = `<div class="page-enter">
+    <div class="login-portal-header">
+      <div class="badge badge-purple" style="margin-bottom:8px">⚡ ROLE-BASED ACCESS CONTROL</div>
+      <h1>${t('loginPortalTitle')}</h1>
+      <p>${t('loginPortalSubtitle')}</p>
+    </div>
+
+    <!-- 3 Role Selector Cards with Credentials -->
+    <div class="role-cards-grid">
+      
+      <!-- Card 1: AI Buyer -->
+      <div class="role-card ${currentUser.role === 'buyer' ? 'active-role' : ''}">
+        <div>
+          <div class="role-card-top">
+            <div class="role-card-icon">👤</div>
+            <div>
+              <div class="role-card-tag">CONSUMER ROLE</div>
+              <h2 class="role-card-title">${t('roleBuyer')}</h2>
+            </div>
+          </div>
+          <div class="role-card-desc">
+            Personal AI shopping assistant with spending limits (₹80k limit) and real-time refund request tracking.
+          </div>
+
+          <div class="role-creds-chip">
+            <div class="role-creds-row"><span class="role-creds-label">Email:</span> <span class="role-creds-val">buyer@agentpay.dev</span></div>
+            <div class="role-creds-row"><span class="role-creds-label">Password:</span> <span class="role-creds-val">buyer123</span></div>
+          </div>
+
+          <ul class="role-scope-list">
+            <li class="role-scope-item">✓ <span>AI Voice & Negotiation Shopping</span></li>
+            <li class="role-scope-item">✓ <span>Strict ₹80,000 Budget Safeguards</span></li>
+            <li class="role-scope-item">✓ <span>Natural Language Refund Center</span></li>
+          </ul>
+        </div>
+
+        <button type="button" class="btn-quick-login" onclick="window.loginWithRole('buyer')">
+          ${currentUser.role === 'buyer' ? '✓ Currently Active (Buyer)' : '⚡ Quick Login as Buyer'}
+        </button>
+      </div>
+
+      <!-- Card 2: Merchant Admin -->
+      <div class="role-card ${currentUser.role === 'merchant' ? 'active-role' : ''}">
+        <div>
+          <div class="role-card-top">
+            <div class="role-card-icon">🏪</div>
+            <div>
+              <div class="role-card-tag">STORE OWNER</div>
+              <h2 class="role-card-title">${t('roleMerchant')}</h2>
+            </div>
+          </div>
+          <div class="role-card-desc">
+            Manage TechNova Store rules, configure discount ceilings, sign off on high-value orders & refunds.
+          </div>
+
+          <div class="role-creds-chip">
+            <div class="role-creds-row"><span class="role-creds-label">Email:</span> <span class="role-creds-val">merchant@agentpay.dev</span></div>
+            <div class="role-creds-row"><span class="role-creds-label">Password:</span> <span class="role-creds-val">merchant123</span></div>
+          </div>
+
+          <ul class="role-scope-list">
+            <li class="role-scope-item">✓ <span>Discount Ceilings (10% Max)</span></li>
+            <li class="role-scope-item">✓ <span>High-Value Order Approvals (>₹50k)</span></li>
+            <li class="role-scope-item">✓ <span>Merchant Refund Decision Desk</span></li>
+          </ul>
+        </div>
+
+        <button type="button" class="btn-quick-login" onclick="window.loginWithRole('merchant')">
+          ${currentUser.role === 'merchant' ? '✓ Currently Active (Merchant)' : '⚡ Quick Login as Merchant'}
+        </button>
+      </div>
+
+      <!-- Card 3: Security Auditor -->
+      <div class="role-card ${currentUser.role === 'auditor' ? 'active-role' : ''}">
+        <div>
+          <div class="role-card-top">
+            <div class="role-card-icon">🛡️</div>
+            <div>
+              <div class="role-card-tag">SECURITY / SOC</div>
+              <h2 class="role-card-title">${t('roleAuditor')}</h2>
+            </div>
+          </div>
+          <div class="role-card-desc">
+            Deep visibility into the 10-stage neural kill chain, collision attack defense, and financial invariance.
+          </div>
+
+          <div class="role-creds-chip">
+            <div class="role-creds-row"><span class="role-creds-label">Email:</span> <span class="role-creds-val">auditor@agentpay.dev</span></div>
+            <div class="role-creds-row"><span class="role-creds-label">Password:</span> <span class="role-creds-val">auditor123</span></div>
+          </div>
+
+          <ul class="role-scope-list">
+            <li class="role-scope-item">✓ <span>10-Stage Neural Physics Graph</span></li>
+            <li class="role-scope-item">✓ <span>Mathematical Money Conservation</span></li>
+            <li class="role-scope-item">✓ <span>Collusion & Replay Attack Defense</span></li>
+          </ul>
+        </div>
+
+        <button type="button" class="btn-quick-login" onclick="window.loginWithRole('auditor')">
+          ${currentUser.role === 'auditor' ? '✓ Currently Active (Auditor)' : '⚡ Quick Login as Auditor'}
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Manual Credential Sign In Box -->
+    <div class="manual-auth-box">
+      <div class="card-title" style="margin-bottom:8px">🔑 Manual Sign In</div>
+      <div class="card-subtitle" style="margin-bottom:14px">Type any of the 3 demo credentials above to sign in.</div>
+      <form id="manual-login-form" style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:4px">Email Address</label>
+          <input type="email" id="login-email" required placeholder="e.g. buyer@agentpay.dev" style="width:100%" />
+        </div>
+        <div>
+          <label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:4px">Password</label>
+          <input type="password" id="login-password" required placeholder="Enter password" style="width:100%" />
+        </div>
+        <button type="submit" class="btn-primary" style="margin-top:6px">${t('sendBtn') ? 'Sign In' : 'Sign In'}</button>
+      </form>
+    </div>
+  </div>`;
+
+  document.getElementById('manual-login-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value.trim().toLowerCase();
+    const pass = document.getElementById('login-password').value.trim();
+
+    if (DEMO_ACCOUNTS[email]) {
+      const acc = DEMO_ACCOUNTS[email];
+      if (acc.password === pass) {
+        setAuthUser(acc);
+        showToast(`Welcome back, ${acc.name}!`, 'success');
+        window.location.hash = '#/';
+        return;
+      }
+    }
+    showToast('Invalid credentials. Please use one of the 3 demo accounts above.', 'error');
+  });
+}
+
+
+// ── Role-Tailored Main Dashboard ──
 async function renderDashboard() {
+  const user = getAuthUser();
   app.innerHTML = `<div class="page-enter">${loading()}</div>`;
 
   const health = await api('/health');
   const merchantsData = await api('/merchants');
   const merchants = merchantsData?.merchants || [];
 
+  if (user.role === 'merchant') {
+    await renderMerchantDashboardView(user, health, merchants);
+  } else if (user.role === 'auditor') {
+    await renderAuditorDashboard(user, health);
+  } else {
+    await renderBuyerDashboard(user, health, merchants);
+  }
+}
+
+// ── 1. Buyer Dashboard ──
+async function renderBuyerDashboard(user, health, merchants) {
   const totalProducts = merchants.reduce((sum, m) => sum + (m.product_count || 0), 0);
-  const avgTrust = merchants.length
-    ? (merchants.reduce((sum, m) => sum + m.trust_score, 0) / merchants.length).toFixed(1)
-    : '—';
 
   app.innerHTML = `<div class="page-enter">
-    <!-- Hero -->
+    <!-- Buyer Hero Banner -->
     <div class="hero">
+      <div class="badge badge-cyan" style="margin-bottom:8px">👤 AI BUYER WORKSPACE · ${user.name}</div>
       <h1>${t('brandName')}</h1>
       <p>${t('dashSubtitle')}</p>
+      
       <div class="hero-badges">
         <span class="badge ${health?.status === 'healthy' ? 'badge-green' : 'badge-red'}">
-          ${health?.status === 'healthy' ? `● ${t('statusHealthy')}` : `● ${t('statusOffline')}`}
+          ● ${health?.status === 'healthy' ? t('statusHealthy') : t('statusOffline')}
         </span>
-        <span class="badge badge-purple">
-          LLM: ${health?.llm_provider || 'none'}
-        </span>
-        <span class="badge badge-cyan">
-          ${health?.razorpay_configured ? '● Razorpay Connected' : '○ Razorpay Test Mode'}
-        </span>
-        <span class="badge badge-amber">v${health?.version || '1.0.0'}</span>
+        <span class="badge badge-purple">LLM: ${health?.llm_provider || 'groq'}</span>
+        <span class="badge badge-cyan">₹80,000 Single Tx Guardrail</span>
       </div>
+
       <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
         <a href="#/agent" class="btn-primary" style="padding:10px 20px;font-size:0.9rem">${t('launchAgentBtn')}</a>
-        <a href="#/policy" class="btn-secondary" style="padding:10px 20px;font-size:0.9rem">${t('launchTrustBtn')}</a>
+        <a href="#/refunds" class="btn-secondary" style="padding:10px 20px;font-size:0.9rem">↩️ ${t('navRefunds')}</a>
       </div>
     </div>
 
-    <!-- Stats -->
+    <!-- Buyer Personal Budget Limits -->
     <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-icon">💳</span>
+        <div class="stat-value">${formatPrice(user.budget_limit)}</div>
+        <div class="stat-label">Single Tx Limit</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">📅</span>
+        <div class="stat-value">${formatPrice(user.daily_limit)}</div>
+        <div class="stat-label">Daily Budget Limit</div>
+      </div>
       <div class="stat-card">
         <span class="stat-icon">🏪</span>
         <div class="stat-value">${merchants.length}</div>
@@ -163,36 +423,26 @@ async function renderDashboard() {
         <div class="stat-value">${totalProducts}</div>
         <div class="stat-label">${t('statProducts')}</div>
       </div>
-      <div class="stat-card">
-        <span class="stat-icon">⭐</span>
-        <div class="stat-value">${avgTrust}</div>
-        <div class="stat-label">${t('statAvgTrust')}</div>
-      </div>
-      <div class="stat-card">
-        <span class="stat-icon">🛡️</span>
-        <div class="stat-value">${health?.llm_configured ? 'AI' : 'Rule'}</div>
-        <div class="stat-label">${t('statFeatures')}</div>
-      </div>
     </div>
 
-    <!-- Quick Scenarios -->
-    <div class="section-title">${t('quickScenarios')}</div>
+    <!-- Quick Purchase Scenarios -->
+    <div class="section-title">⚡ Try AI Buyer Shopping Scenarios</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:28px">
       <div class="card" style="cursor:pointer" onclick="window.location.hash='#/agent'">
         <div style="font-weight:700;color:var(--accent-green)">1. ${t('scenario1Title')}</div>
         <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">${t('scenario1Desc')}</div>
       </div>
-      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/policy'">
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/agent'">
         <div style="font-weight:700;color:var(--accent-amber)">2. ${t('scenario2Title')}</div>
         <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">${t('scenario2Desc')}</div>
       </div>
-      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/policy'">
-        <div style="font-weight:700;color:var(--accent-red)">3. ${t('scenario3Title')}</div>
-        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">${t('scenario3Desc')}</div>
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/refunds'">
+        <div style="font-weight:700;color:var(--accent-purple)">3. Real-Time Refund Center</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Submit natural-language returns and track 6-stage live lifecycle.</div>
       </div>
     </div>
 
-    <!-- Quick Merchants Preview -->
+    <!-- Verified Merchants Catalog -->
     <div class="section-title">${t('merchantsTitle')}</div>
     <div class="merchants-grid">
       ${merchants.slice(0, 6).map(m => merchantCardHTML(m)).join('')}
@@ -200,6 +450,144 @@ async function renderDashboard() {
   </div>`;
 }
 
+// ── 2. Merchant Store Dashboard ──
+async function renderMerchantDashboardView(user, health, merchants) {
+  const dashData = await api('/refunds/dashboard');
+
+  app.innerHTML = `<div class="page-enter">
+    <!-- Merchant Hero Banner -->
+    <div class="hero" style="background:linear-gradient(135deg, rgba(34, 211, 238, 0.15) 0%, rgba(167, 139, 250, 0.08) 100%);">
+      <div class="badge badge-purple" style="margin-bottom:8px">🏪 STORE OWNER WORKSPACE · ${user.name}</div>
+      <h1>TechNova Store Management</h1>
+      <p>Configure autonomous negotiation discount ceilings, review high-value transactions, and disburse customer refunds via Razorpay.</p>
+      
+      <div class="hero-badges">
+        <span class="badge badge-green">● TechNova Store Active</span>
+        <span class="badge badge-purple">Max Auto Discount: 10%</span>
+        <span class="badge badge-amber">Sign-Off Threshold: ₹50,000</span>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
+        <a href="#/refunds/merchant" class="btn-primary" style="padding:10px 20px;font-size:0.9rem">↩️ ${t('merchantRefundTitle')}</a>
+        <a href="#/policy" class="btn-secondary" style="padding:10px 20px;font-size:0.9rem">🛡️ Store Policy Rules</a>
+      </div>
+    </div>
+
+    <!-- Merchant Store Metrics -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-icon">💰</span>
+        <div class="stat-value">10%</div>
+        <div class="stat-label">Max Discount Allowed</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">⚡</span>
+        <div class="stat-value">5%</div>
+        <div class="stat-label">Auto Baseline Discount</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">⏳</span>
+        <div class="stat-value">${dashData?.pending_approval || 1}</div>
+        <div class="stat-label">Pending Refund Requests</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">💵</span>
+        <div class="stat-value">${formatPrice(dashData?.total_refunded_amount || 0)}</div>
+        <div class="stat-label">Total Refunded</div>
+      </div>
+    </div>
+
+    <!-- Merchant Action Shortcuts -->
+    <div class="section-title">🏪 Store Management Tools</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:28px">
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/refunds/merchant'">
+        <div style="font-weight:700;color:var(--accent-amber)">↩️ Customer Refund Approval Desk</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Inspect incoming return claims, view AI merchant recommendations, and approve with Razorpay.</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/policy'">
+        <div style="font-weight:700;color:var(--accent-cyan)">🛡️ Store Policy &amp; Guardrails</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Set floor prices, approval gates, and autonomous bargaining bounds.</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/merchants/merchant-technova'">
+        <div style="font-weight:700;color:var(--accent-purple)">📦 Product Catalog &amp; Returns</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">View inventory, ratings, and category-specific 10-day laptop return policies.</div>
+      </div>
+    </div>
+
+    <!-- Products in Store -->
+    <div class="section-title">📦 TechNova Featured Products</div>
+    <div class="merchants-grid">
+      ${merchants.slice(0, 4).map(m => merchantCardHTML(m)).join('')}
+    </div>
+  </div>`;
+}
+
+// ── 3. Security Auditor Dashboard ──
+async function renderAuditorDashboard(user, health) {
+  const auditLogs = await api('/audit/logs');
+  const logs = auditLogs?.logs || [];
+
+  app.innerHTML = `<div class="page-enter">
+    <!-- Auditor Hero Banner -->
+    <div class="hero" style="background:linear-gradient(135deg, rgba(239, 68, 68, 0.12) 0%, rgba(167, 139, 250, 0.08) 100%);">
+      <div class="badge badge-red" style="margin-bottom:8px">🛡️ SOC &amp; AUDIT WORKSPACE · ${user.name}</div>
+      <h1>Security Operations Center (SOC)</h1>
+      <p>Real-time oversight of the 10-stage neural transaction kill chain, mathematical financial invariants, and collision defense.</p>
+      
+      <div class="hero-badges">
+        <span class="badge badge-green">● Kill Chain Active</span>
+        <span class="badge badge-cyan">● Idempotency Lock: SHA-256</span>
+        <span class="badge badge-purple">● Ledger Drift: ₹0.00 (Zero Leakage)</span>
+      </div>
+
+      <div style="margin-top:20px;display:flex;gap:12px;flex-wrap:wrap">
+        <a href="#/kill-chain" class="btn-primary" style="padding:10px 20px;font-size:0.9rem">🔗 ${t('navKillChain')}</a>
+        <a href="#/audit" class="btn-secondary" style="padding:10px 20px;font-size:0.9rem">📝 ${t('navAudit')}</a>
+      </div>
+    </div>
+
+    <!-- SOC Security Metrics -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-icon">🔗</span>
+        <div class="stat-value">10</div>
+        <div class="stat-label">Security Pipeline Stages</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🛡️</span>
+        <div class="stat-value">100%</div>
+        <div class="stat-label">Deterministic Coverage</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">📝</span>
+        <div class="stat-value">${logs.length}</div>
+        <div class="stat-label">Logged Audit Events</div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🔒</span>
+        <div class="stat-value">0</div>
+        <div class="stat-label">Detected Financial Drifts</div>
+      </div>
+    </div>
+
+    <!-- SOC Auditor Shortcuts -->
+    <div class="section-title">🔍 Security &amp; Compliance Tools</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:28px">
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/kill-chain'">
+        <div style="font-weight:700;color:var(--accent-cyan)">🔗 Neural Physics Kill Chain Visualizer</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Run real-time transaction simulations, drag nodes, and inspect decision explainability.</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/audit'">
+        <div style="font-weight:700;color:var(--accent-purple)">📝 Immutable Audit Trail</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Review chronological event stream, actor identities, and policy evaluation results.</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/policy'">
+        <div style="font-weight:700;color:var(--accent-green)">🛡️ Trust &amp; Simulation Engine</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Test dry-run transaction policies and verify single-transaction limits.</div>
+      </div>
+    </div>
+  </div>`;
+}
 
 // ── Merchants List ──
 async function renderMerchants() {
@@ -1843,6 +2231,11 @@ async function handleRoute() {
     case 'dashboard':
       setActiveNav('dashboard');
       await renderDashboard();
+      break;
+    case 'login':
+    case 'auth':
+      setActiveNav('login');
+      await renderLoginPage();
       break;
     case 'merchants':
       setActiveNav('merchants');
