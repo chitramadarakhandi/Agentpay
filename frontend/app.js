@@ -157,7 +157,7 @@ export function getAuthUser() {
       }
     } catch (e) {}
   }
-  return DEMO_ACCOUNTS['buyer@agentpay.dev'];
+  return null; // Not logged in by default!
 }
 
 export function setAuthUser(user) {
@@ -167,6 +167,21 @@ export function setAuthUser(user) {
 
 export function updateUserUI() {
   const user = getAuthUser();
+  const body = document.body;
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('app');
+
+  if (!user) {
+    body.classList.add('is-auth-screen');
+    if (sidebar) sidebar.style.display = 'none';
+    if (main) main.classList.add('full-width');
+    return;
+  }
+
+  body.classList.remove('is-auth-screen');
+  if (sidebar) sidebar.style.display = 'flex';
+  if (main) main.classList.remove('full-width');
+
   const avatarEl = document.getElementById('sidebar-user-avatar');
   const nameEl = document.getElementById('sidebar-user-name');
   const badgeEl = document.getElementById('sidebar-user-badge');
@@ -174,21 +189,51 @@ export function updateUserUI() {
   if (avatarEl) avatarEl.textContent = user.avatar;
   if (nameEl) nameEl.textContent = user.name;
   if (badgeEl) badgeEl.textContent = user.roleBadge;
-}
 
-window.loginWithRole = function(roleKey) {
-  let target = DEMO_ACCOUNTS['buyer@agentpay.dev'];
-  if (roleKey === 'merchant') target = DEMO_ACCOUNTS['merchant@agentpay.dev'];
-  if (roleKey === 'auditor') target = DEMO_ACCOUNTS['auditor@agentpay.dev'];
-  
-  setAuthUser(target);
-  showToast(`Logged in as ${target.name} (${target.roleLabel})`, 'success');
-  window.location.hash = '#/';
-};
+  // Filter Nav Items according to Active Role
+  const navLogin = document.getElementById('nav-login');
+  const navDashboard = document.getElementById('nav-dashboard');
+  const navMerchants = document.getElementById('nav-merchants');
+  const navAgent = document.getElementById('nav-agent');
+  const navPolicy = document.getElementById('nav-policy');
+  const navAudit = document.getElementById('nav-audit');
+  const navKillChain = document.getElementById('nav-kill-chain');
+  const navRefunds = document.getElementById('nav-refunds');
+  const navMerchantRefunds = document.getElementById('nav-refunds-merchant');
+
+  // Hide all optional navs first
+  const allNavs = [navMerchants, navAgent, navPolicy, navAudit, navKillChain, navRefunds, navMerchantRefunds];
+  allNavs.forEach(n => { if (n?.parentElement) n.parentElement.style.display = 'none'; });
+  if (navLogin?.parentElement) navLogin.parentElement.style.display = 'none';
+
+  if (user.role === 'buyer') {
+    // 👤 Buyer sees only: Dashboard, Merchants, AI Buyer Agent, My Refunds, Spending Limits
+    if (navMerchants?.parentElement) navMerchants.parentElement.style.display = '';
+    if (navAgent?.parentElement) navAgent.parentElement.style.display = '';
+    if (navRefunds?.parentElement) navRefunds.parentElement.style.display = '';
+    if (navPolicy?.parentElement) navPolicy.parentElement.style.display = '';
+    const lbl = document.getElementById('nav-label-dashboard');
+    if (lbl) lbl.textContent = 'Buyer Dashboard';
+  } else if (user.role === 'merchant') {
+    // 🏪 Merchant sees only: Dashboard, Store Products, Store Policy & Rules, Customer Refunds
+    if (navMerchants?.parentElement) navMerchants.parentElement.style.display = '';
+    if (navPolicy?.parentElement) navPolicy.parentElement.style.display = '';
+    if (navMerchantRefunds?.parentElement) navMerchantRefunds.parentElement.style.display = '';
+    const lbl = document.getElementById('nav-label-dashboard');
+    if (lbl) lbl.textContent = 'Merchant Dashboard';
+  } else if (user.role === 'auditor') {
+    // 🛡️ Auditor sees only: SOC Dashboard, 10-Stage Kill Chain, Immutable Audit Trail, Trust Engine
+    if (navKillChain?.parentElement) navKillChain.parentElement.style.display = '';
+    if (navAudit?.parentElement) navAudit.parentElement.style.display = '';
+    if (navPolicy?.parentElement) navPolicy.parentElement.style.display = '';
+    const lbl = document.getElementById('nav-label-dashboard');
+    if (lbl) lbl.textContent = 'SOC Dashboard';
+  }
+}
 
 window.logoutUser = function() {
   localStorage.removeItem('agentpay_auth_user');
-  showToast('Signed out. Reset to Demo Buyer.', 'info');
+  showToast('Signed out successfully.', 'info');
   window.location.hash = '#/login';
 };
 
@@ -212,148 +257,109 @@ function updateNavTranslations() {
 // PAGES & ROLE-TAILORED DASHBOARDS
 // ════════════════════════════════════════════════════════
 
-// ── Access Portal / Role Login Page ──
+// ── Unified Role-Based Login Page ──
 async function renderLoginPage() {
-  const currentUser = getAuthUser();
+  updateUserUI();
 
-  app.innerHTML = `<div class="page-enter">
-    <div class="login-portal-header">
-      <div class="badge badge-purple" style="margin-bottom:8px">⚡ ROLE-BASED ACCESS CONTROL</div>
-      <h1>${t('loginPortalTitle')}</h1>
-      <p>${t('loginPortalSubtitle')}</p>
-    </div>
-
-    <!-- 3 Role Selector Cards with Credentials -->
-    <div class="role-cards-grid">
-      
-      <!-- Card 1: AI Buyer -->
-      <div class="role-card ${currentUser.role === 'buyer' ? 'active-role' : ''}">
-        <div>
-          <div class="role-card-top">
-            <div class="role-card-icon">👤</div>
-            <div>
-              <div class="role-card-tag">CONSUMER ROLE</div>
-              <h2 class="role-card-title">${t('roleBuyer')}</h2>
-            </div>
-          </div>
-          <div class="role-card-desc">
-            Personal AI shopping assistant with spending limits (₹80k limit) and real-time refund request tracking.
-          </div>
-
-          <div class="role-creds-chip">
-            <div class="role-creds-row"><span class="role-creds-label">Email:</span> <span class="role-creds-val">buyer@agentpay.dev</span></div>
-            <div class="role-creds-row"><span class="role-creds-label">Password:</span> <span class="role-creds-val">buyer123</span></div>
-          </div>
-
-          <ul class="role-scope-list">
-            <li class="role-scope-item">✓ <span>AI Voice & Negotiation Shopping</span></li>
-            <li class="role-scope-item">✓ <span>Strict ₹80,000 Budget Safeguards</span></li>
-            <li class="role-scope-item">✓ <span>Natural Language Refund Center</span></li>
-          </ul>
-        </div>
-
-        <button type="button" class="btn-quick-login" onclick="window.loginWithRole('buyer')">
-          ${currentUser.role === 'buyer' ? '✓ Currently Active (Buyer)' : '⚡ Quick Login as Buyer'}
-        </button>
+  app.innerHTML = `<div class="login-screen-wrapper">
+    <div class="unified-login-card">
+      <div class="login-card-header">
+        <div class="brand-icon" style="margin:0 auto 12px">⚡</div>
+        <h1 class="login-brand-title">AgentPay</h1>
+        <p class="login-brand-sub">Autonomous AI-to-AI Commerce &amp; Payments</p>
       </div>
 
-      <!-- Card 2: Merchant Admin -->
-      <div class="role-card ${currentUser.role === 'merchant' ? 'active-role' : ''}">
-        <div>
-          <div class="role-card-top">
-            <div class="role-card-icon">🏪</div>
-            <div>
-              <div class="role-card-tag">STORE OWNER</div>
-              <h2 class="role-card-title">${t('roleMerchant')}</h2>
-            </div>
-          </div>
-          <div class="role-card-desc">
-            Manage TechNova Store rules, configure discount ceilings, sign off on high-value orders & refunds.
-          </div>
-
-          <div class="role-creds-chip">
-            <div class="role-creds-row"><span class="role-creds-label">Email:</span> <span class="role-creds-val">merchant@agentpay.dev</span></div>
-            <div class="role-creds-row"><span class="role-creds-label">Password:</span> <span class="role-creds-val">merchant123</span></div>
-          </div>
-
-          <ul class="role-scope-list">
-            <li class="role-scope-item">✓ <span>Discount Ceilings (10% Max)</span></li>
-            <li class="role-scope-item">✓ <span>High-Value Order Approvals (>₹50k)</span></li>
-            <li class="role-scope-item">✓ <span>Merchant Refund Decision Desk</span></li>
-          </ul>
+      <form id="unified-login-form">
+        <!-- 1. Role Selection Dropdown -->
+        <div class="form-group" style="margin-bottom:14px">
+          <label for="login-role-select" style="font-weight:700;color:var(--accent-purple);margin-bottom:6px">🎯 Select Persona / Role</label>
+          <select id="login-role-select" class="login-select-role">
+            <option value="buyer" selected>👤 AI Buyer / Customer (buyer@agentpay.dev)</option>
+            <option value="merchant">🏪 TechNova Merchant (merchant@agentpay.dev)</option>
+            <option value="auditor">🛡️ Security &amp; Compliance Auditor (auditor@agentpay.dev)</option>
+          </select>
         </div>
 
-        <button type="button" class="btn-quick-login" onclick="window.loginWithRole('merchant')">
-          ${currentUser.role === 'merchant' ? '✓ Currently Active (Merchant)' : '⚡ Quick Login as Merchant'}
+        <!-- 2. Role Preview Info Box -->
+        <div class="role-preview-banner" id="login-role-preview">
+          <div class="role-preview-title">👤 AI Buyer Persona</div>
+          <div class="role-preview-desc">Personal AI shopping assistant with spending limits (₹80k limit) and real-time refund request tracking.</div>
+        </div>
+
+        <!-- 3. Email Input -->
+        <div class="form-group" style="margin-bottom:12px">
+          <label for="login-email">Email Address</label>
+          <input type="email" id="login-email" required value="buyer@agentpay.dev" style="width:100%" />
+        </div>
+
+        <!-- 4. Password Input -->
+        <div class="form-group" style="margin-bottom:16px">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required value="buyer123" style="width:100%" />
+        </div>
+
+        <!-- 5. Sign In Button -->
+        <button type="submit" class="btn-primary btn-login-submit">
+          <span>🚀 Sign In &amp; Launch Dashboard</span>
         </button>
-      </div>
 
-      <!-- Card 3: Security Auditor -->
-      <div class="role-card ${currentUser.role === 'auditor' ? 'active-role' : ''}">
-        <div>
-          <div class="role-card-top">
-            <div class="role-card-icon">🛡️</div>
-            <div>
-              <div class="role-card-tag">SECURITY / SOC</div>
-              <h2 class="role-card-title">${t('roleAuditor')}</h2>
-            </div>
-          </div>
-          <div class="role-card-desc">
-            Deep visibility into the 10-stage neural kill chain, collision attack defense, and financial invariance.
-          </div>
-
-          <div class="role-creds-chip">
-            <div class="role-creds-row"><span class="role-creds-label">Email:</span> <span class="role-creds-val">auditor@agentpay.dev</span></div>
-            <div class="role-creds-row"><span class="role-creds-label">Password:</span> <span class="role-creds-val">auditor123</span></div>
-          </div>
-
-          <ul class="role-scope-list">
-            <li class="role-scope-item">✓ <span>10-Stage Neural Physics Graph</span></li>
-            <li class="role-scope-item">✓ <span>Mathematical Money Conservation</span></li>
-            <li class="role-scope-item">✓ <span>Collusion & Replay Attack Defense</span></li>
-          </ul>
+        <!-- 6. Demo Credentials Quick Reference Box -->
+        <div class="login-creds-ref-box">
+          <div class="creds-ref-title">📋 Pre-Configured Demo Credentials:</div>
+          <div class="creds-ref-row"><span>👤 <strong>Buyer:</strong></span> <code>buyer@agentpay.dev</code> | <code>buyer123</code></div>
+          <div class="creds-ref-row"><span>🏪 <strong>Merchant:</strong></span> <code>merchant@agentpay.dev</code> | <code>merchant123</code></div>
+          <div class="creds-ref-row"><span>🛡️ <strong>Auditor:</strong></span> <code>auditor@agentpay.dev</code> | <code>auditor123</code></div>
         </div>
-
-        <button type="button" class="btn-quick-login" onclick="window.loginWithRole('auditor')">
-          ${currentUser.role === 'auditor' ? '✓ Currently Active (Auditor)' : '⚡ Quick Login as Auditor'}
-        </button>
-      </div>
-
-    </div>
-
-    <!-- Manual Credential Sign In Box -->
-    <div class="manual-auth-box">
-      <div class="card-title" style="margin-bottom:8px">🔑 Manual Sign In</div>
-      <div class="card-subtitle" style="margin-bottom:14px">Type any of the 3 demo credentials above to sign in.</div>
-      <form id="manual-login-form" style="display:flex;flex-direction:column;gap:12px">
-        <div>
-          <label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:4px">Email Address</label>
-          <input type="email" id="login-email" required placeholder="e.g. buyer@agentpay.dev" style="width:100%" />
-        </div>
-        <div>
-          <label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:4px">Password</label>
-          <input type="password" id="login-password" required placeholder="Enter password" style="width:100%" />
-        </div>
-        <button type="submit" class="btn-primary" style="margin-top:6px">${t('sendBtn') ? 'Sign In' : 'Sign In'}</button>
       </form>
     </div>
   </div>`;
 
-  document.getElementById('manual-login-form').addEventListener('submit', (e) => {
+  const roleSelect = document.getElementById('login-role-select');
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  const previewBox = document.getElementById('login-role-preview');
+
+  roleSelect.addEventListener('change', (e) => {
+    const rKey = e.target.value;
+    if (rKey === 'merchant') {
+      emailInput.value = 'merchant@agentpay.dev';
+      passInput.value = 'merchant123';
+      previewBox.innerHTML = `
+        <div class="role-preview-title">🏪 TechNova Merchant Persona</div>
+        <div class="role-preview-desc">Configure store discount ceilings (10% max), sign off on high-value orders (>₹50k), and approve customer refunds with Razorpay.</div>
+      `;
+    } else if (rKey === 'auditor') {
+      emailInput.value = 'auditor@agentpay.dev';
+      passInput.value = 'auditor123';
+      previewBox.innerHTML = `
+        <div class="role-preview-title">🛡️ Security Auditor Persona</div>
+        <div class="role-preview-desc">Inspect 10-stage neural kill chain visualizer, verify zero-leakage financial ledger invariants, and review fraud prevention logs.</div>
+      `;
+    } else {
+      emailInput.value = 'buyer@agentpay.dev';
+      passInput.value = 'buyer123';
+      previewBox.innerHTML = `
+        <div class="role-preview-title">👤 AI Buyer Persona</div>
+        <div class="role-preview-desc">Personal AI shopping assistant with spending limits (₹80k limit) and real-time refund request tracking.</div>
+      `;
+    }
+  });
+
+  document.getElementById('unified-login-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const email = document.getElementById('login-email').value.trim().toLowerCase();
-    const pass = document.getElementById('login-password').value.trim();
+    const email = emailInput.value.trim().toLowerCase();
+    const pass = passInput.value.trim();
 
     if (DEMO_ACCOUNTS[email]) {
       const acc = DEMO_ACCOUNTS[email];
       if (acc.password === pass) {
         setAuthUser(acc);
-        showToast(`Welcome back, ${acc.name}!`, 'success');
+        showToast(`Welcome, ${acc.name}! Accessing ${acc.roleLabel} dashboard.`, 'success');
         window.location.hash = '#/';
         return;
       }
     }
-    showToast('Invalid credentials. Please use one of the 3 demo accounts above.', 'error');
+    showToast('Invalid credentials. Please use the credentials shown in the cheat sheet.', 'error');
   });
 }
 
@@ -2221,21 +2227,30 @@ function setActiveNav(page) {
 }
 
 async function handleRoute() {
-  updateNavTranslations();
+  const user = getAuthUser();
   const hash = window.location.hash || '#/';
   const match = hash.match(/^#\/([\w-]*)(?:\/(.*?))?$/);
   const [, page, param] = match || [null, '', null];
+
+  // If user is NOT logged in, always enforce Login Page
+  if (!user && page !== 'login' && page !== 'auth') {
+    window.location.hash = '#/login';
+    return;
+  }
+
+  updateNavTranslations();
+
+  if (!user || page === 'login' || page === 'auth') {
+    setActiveNav('login');
+    await renderLoginPage();
+    return;
+  }
 
   switch (page) {
     case '':
     case 'dashboard':
       setActiveNav('dashboard');
       await renderDashboard();
-      break;
-    case 'login':
-    case 'auth':
-      setActiveNav('login');
-      await renderLoginPage();
       break;
     case 'merchants':
       setActiveNav('merchants');
