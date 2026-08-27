@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+
+[project]
+name = "agentpay-backend"
+version = "1.0.0"
+description = "AgentPay — Trusted AI-to-AI Commerce Infrastructure"
+requires-python = ">=3.12"

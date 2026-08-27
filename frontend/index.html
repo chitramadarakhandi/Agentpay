@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgentPay — Trusted AI-to-AI Commerce</title>
+  <meta name="description" content="AgentPay is an autonomous AI-to-AI commerce and payments platform powered by Razorpay, enabling safe agent-driven transactions." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- ───── Sidebar Navigation ───── -->
+  <nav id="sidebar" class="sidebar">
+    <div class="sidebar-brand" onclick="window.location.hash='#/'">
+      <div class="brand-icon">⚡</div>
+      <span class="brand-text">AgentPay</span>
+    </div>
+
+    <!-- Language Selector Dropdown -->
+    <div class="lang-selector-box">
+      <label for="lang-select" class="lang-label">🌐 Language / ಭಾಷೆ / भाषा</label>
+      <select id="lang-select" class="lang-dropdown" aria-label="Select Language">
+        <option value="en">🇬🇧 English</option>
+        <option value="kn">🇮🇳 ಕನ್ನಡ (Kannada)</option>
+        <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
+      </select>
+    </div>
+
+    <ul class="nav-links">
+      <li><a href="#/" data-page="dashboard" class="nav-link active" id="nav-dashboard">
+        <span class="nav-icon">📊</span><span class="nav-label" id="nav-label-dashboard">Dashboard</span>
+      </a></li>
+      <li><a href="#/merchants" data-page="merchants" class="nav-link" id="nav-merchants">
+        <span class="nav-icon">🏪</span><span class="nav-label" id="nav-label-merchants">Merchants</span>
+      </a></li>
+      <li><a href="#/agent" data-page="agent" class="nav-link" id="nav-agent">
+        <span class="nav-icon">🤖</span><span class="nav-label" id="nav-label-agent">AI Buyer Agent</span>
+      </a></li>
+      <li><a href="#/policy" data-page="policy" class="nav-link" id="nav-policy">
+        <span class="nav-icon">🛡️</span><span class="nav-label" id="nav-label-policy">Policy &amp; Trust</span>
+      </a></li>
+      <li><a href="#/audit" data-page="audit" class="nav-link" id="nav-audit">
+        <span class="nav-icon">📝</span><span class="nav-label" id="nav-label-audit">Audit Trail</span>
+      </a></li>
+      <li><a href="#/kill-chain" data-page="kill-chain" class="nav-link" id="nav-kill-chain">
+        <span class="nav-icon">🔗</span><span class="nav-label" id="nav-label-kill-chain">Kill Chain</span>
+      </a></li>
+      <li><a href="#/refunds" data-page="refunds" class="nav-link" id="nav-refunds">
+        <span class="nav-icon">↩️</span><span class="nav-label" id="nav-label-refunds">Refund Center</span>
+      </a></li>
+      <li><a href="#/refunds/merchant" data-page="refunds-merchant" class="nav-link" id="nav-refunds-merchant">
+        <span class="nav-icon">🏪</span><span class="nav-label" id="nav-label-refunds-merchant">Merchant Refunds</span>
+      </a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="status-badge" id="health-badge">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking…</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ───── Main Content Area ───── -->
+  <main id="app" class="main-content">
+    <!-- Pages are rendered here by app.js -->
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
