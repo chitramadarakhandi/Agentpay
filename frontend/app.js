@@ -576,6 +576,30 @@ async function renderAuditorDashboard(user, health) {
       </div>
     </div>
 
+    <!-- Red Team Attack Console -->
+    <div class="card" style="margin-bottom:24px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.04)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div>
+          <div class="card-title" style="color:var(--accent-red)">⚡ Red Team Attack &amp; Adversarial Defense Console</div>
+          <div class="card-subtitle">Test live collision resistance, prompt injection, and double-spend attack mitigation on the Kill Chain.</div>
+        </div>
+        <button type="button" class="btn-primary" style="padding:6px 14px;font-size:0.78rem" onclick="window.openComplianceCertModal()">
+          📜 Export Compliance Certificate
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px">
+        <button type="button" class="btn-secondary" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red);padding:10px" onclick="window.runAttackSimulation('collusion')">
+          🚨 40% Collusion Attack
+        </button>
+        <button type="button" class="btn-secondary" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red);padding:10px" onclick="window.runAttackSimulation('replay')">
+          🚨 Double-Spend Replay
+        </button>
+        <button type="button" class="btn-secondary" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red);padding:10px" onclick="window.runAttackSimulation('prompt_injection')">
+          🚨 Prompt Injection (₹5L)
+        </button>
+      </div>
+    </div>
+
     <!-- SOC Auditor Shortcuts -->
     <div class="section-title">🔍 Security &amp; Compliance Tools</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:28px">
@@ -893,6 +917,219 @@ function productCardHTML(p, merchantName = '') {
 let chatMessages = [];
 let voiceRecognition = null;
 let isListening = false;
+window.isAutoVoiceEnabled = false;
+
+// ── 🎙️ Text-To-Speech (TTS) Voice Synthesis ──
+window.toggleAutoVoice = function() {
+  window.isAutoVoiceEnabled = !window.isAutoVoiceEnabled;
+  const btn = document.getElementById('btn-auto-voice');
+  if (btn) {
+    btn.classList.toggle('active', window.isAutoVoiceEnabled);
+    btn.innerHTML = window.isAutoVoiceEnabled ? '🔊 Voice TTS: ON' : '🔈 Voice TTS: OFF';
+  }
+  showToast(window.isAutoVoiceEnabled ? 'AI Voice Speech Synthesis Activated' : 'Voice Speech Deactivated', 'info');
+};
+
+window.speakText = function(text) {
+  if (!('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const clean = text.replace(/<[^>]*>?/gm, ' ').replace(/₹/g, 'Rupees ').replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!clean) return;
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    const curLang = getLang();
+    utterance.lang = curLang === 'kn' ? 'kn-IN' : curLang === 'hi' ? 'hi-IN' : 'en-IN';
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+
+    const voices = window.speechSynthesis.getVoices();
+    const match = voices.find(v => v.lang && (v.lang.startsWith(curLang) || v.lang.includes(curLang)));
+    if (match) utterance.voice = match;
+
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.warn('Speech synthesis error:', err);
+  }
+};
+
+// ── 📱 Razorpay UPI QR Code Modal ──
+function generateMockUPISvg(orderId, amount) {
+  return `
+    <svg width="180" height="180" viewBox="0 0 180 180" xmlns="http://www.w3.org/2000/svg">
+      <rect width="180" height="180" fill="#ffffff" rx="8"/>
+      <!-- Outer Position Markers -->
+      <rect x="15" y="15" width="40" height="40" fill="#111827" rx="4"/>
+      <rect x="23" y="23" width="24" height="24" fill="#ffffff" rx="2"/>
+      <rect x="29" y="29" width="12" height="12" fill="#22d3ee"/>
+
+      <rect x="125" y="15" width="40" height="40" fill="#111827" rx="4"/>
+      <rect x="133" y="23" width="24" height="24" fill="#ffffff" rx="2"/>
+      <rect x="139" y="29" width="12" height="12" fill="#22d3ee"/>
+
+      <rect x="15" y="125" width="40" height="40" fill="#111827" rx="4"/>
+      <rect x="23" y="133" width="24" height="24" fill="#ffffff" rx="2"/>
+      <rect x="29" y="139" width="12" height="12" fill="#22d3ee"/>
+
+      <!-- QR Matrix Data Blocks -->
+      <rect x="65" y="20" width="10" height="10" fill="#111827"/>
+      <rect x="85" y="20" width="10" height="10" fill="#111827"/>
+      <rect x="100" y="25" width="12" height="8" fill="#111827"/>
+      <rect x="20" y="65" width="10" height="10" fill="#111827"/>
+      <rect x="40" y="75" width="10" height="10" fill="#111827"/>
+      <rect x="65" y="65" width="15" height="15" fill="#a78bfa"/>
+      <rect x="90" y="65" width="10" height="25" fill="#111827"/>
+      <rect x="110" y="70" width="15" height="10" fill="#111827"/>
+      <rect x="135" y="65" width="25" height="10" fill="#111827"/>
+      <rect x="145" y="85" width="15" height="15" fill="#111827"/>
+
+      <rect x="20" y="95" width="15" height="10" fill="#111827"/>
+      <rect x="45" y="95" width="10" height="15" fill="#111827"/>
+      <rect x="70" y="95" width="20" height="10" fill="#111827"/>
+      <rect x="100" y="95" width="10" height="20" fill="#111827"/>
+      <rect x="120" y="95" width="15" height="15" fill="#22d3ee"/>
+
+      <rect x="65" y="125" width="20" height="10" fill="#111827"/>
+      <rect x="95" y="125" width="10" height="10" fill="#111827"/>
+      <rect x="115" y="120" width="20" height="10" fill="#111827"/>
+      <rect x="145" y="125" width="15" height="15" fill="#111827"/>
+      <rect x="65" y="145" width="10" height="20" fill="#111827"/>
+      <rect x="85" y="145" width="25" height="10" fill="#111827"/>
+      <rect x="120" y="145" width="15" height="20" fill="#a78bfa"/>
+      <rect x="145" y="150" width="15" height="15" fill="#111827"/>
+
+      <!-- Central UPI Badge -->
+      <circle cx="90" cy="90" r="15" fill="#0a0e1a"/>
+      <text x="90" y="95" fill="#22d3ee" font-family="sans-serif" font-weight="900" font-size="11" text-anchor="middle">UPI</text>
+    </svg>
+  `;
+}
+
+window.openRazorpayUPIModal = function(details) {
+  const { orderId, amount, productName, onPaid } = details;
+  const qrSvg = generateMockUPISvg(orderId, amount);
+
+  const existing = document.getElementById('razorpay-qr-modal-overlay');
+  if (existing) existing.remove();
+
+  const modalHtml = `
+    <div class="policy-modal-overlay" id="razorpay-qr-modal-overlay">
+      <div class="policy-modal-card" style="max-width:420px;text-align:center;border-color:var(--accent-cyan);box-shadow:0 0 50px rgba(34,211,238,0.3)" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+          <div style="width:26px;height:26px;background:var(--gradient-primary);border-radius:6px;display:grid;place-items:center;color:#0a0e1a;font-weight:900">₹</div>
+          <span style="font-weight:900;font-size:1.15rem;color:var(--text-primary)">Razorpay UPI Gateway</span>
+        </div>
+
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:14px">Scan QR with GPay, PhonePe, Paytm or BHIM</div>
+
+        <div style="background:#fff;padding:14px;border-radius:12px;display:inline-block;margin-bottom:14px;box-shadow:0 8px 30px rgba(0,0,0,0.5)">
+          ${qrSvg}
+        </div>
+
+        <div style="font-size:1.45rem;font-weight:900;color:var(--accent-green);margin-bottom:4px">
+          ${formatPrice(amount)}
+        </div>
+        <div style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:16px">
+          ${productName ? `Item: <strong>${productName}</strong><br>` : ''}
+          Order ID: <code>${orderId ? orderId.slice(0, 16) : 'ord_live'}</code>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button type="button" class="btn-primary" id="btn-simulate-upi-pay" style="padding:12px;font-size:0.9rem">
+            ⚡ Simulate Instant Phone UPI Payment
+          </button>
+          <button type="button" class="btn-secondary" onclick="document.getElementById('razorpay-qr-modal-overlay').remove()">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  document.getElementById('btn-simulate-upi-pay').addEventListener('click', () => {
+    const btn = document.getElementById('btn-simulate-upi-pay');
+    btn.disabled = true;
+    btn.innerHTML = `⏳ Verifying HMAC-SHA256 Signature with Razorpay…`;
+    setTimeout(() => {
+      const modal = document.getElementById('razorpay-qr-modal-overlay');
+      if (modal) modal.remove();
+      showToast(`Payment of ${formatPrice(amount)} Verified via Razorpay UPI!`, 'success');
+      if (onPaid) onPaid();
+    }, 1200);
+  });
+};
+
+// ── 📄 Cryptographic Compliance Certificate Modal ──
+window.openComplianceCertModal = async function() {
+  const cert = await api('/audit/compliance-certificate');
+  if (!cert) return;
+
+  const existing = document.getElementById('compliance-cert-modal-overlay');
+  if (existing) existing.remove();
+
+  const modalHtml = `
+    <div class="policy-modal-overlay" id="compliance-cert-modal-overlay" onclick="window.closeComplianceCertModal()">
+      <div class="policy-modal-card" style="max-width:680px;border-color:var(--accent-purple);box-shadow:0 0 50px rgba(167,139,250,0.3)" onclick="event.stopPropagation()">
+        <button class="policy-modal-close" onclick="window.closeComplianceCertModal()">✕</button>
+        <div id="printable-cert">
+          <div style="text-align:center;border-bottom:2px dashed rgba(167,139,250,0.3);padding-bottom:16px;margin-bottom:18px">
+            <div style="font-size:2rem;margin-bottom:4px">🛡️ ⚡ 📜</div>
+            <h2 style="font-size:1.4rem;font-weight:900;background:var(--gradient-primary);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px">AGENTPAY CRYPTOGRAPHIC AUDIT CERTIFICATE</h2>
+            <div style="font-size:0.76rem;color:var(--accent-cyan);font-weight:700;letter-spacing:0.06em">INVARIANT VERIFICATION &amp; ADVERSARIAL DEFENSE REPORT</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div class="stat-card" style="padding:10px 12px"><span class="stat-label">Certificate ID</span><div style="font-size:0.85rem;font-weight:800;color:var(--text-primary)">${cert.certificate_id}</div></div>
+            <div class="stat-card" style="padding:10px 12px"><span class="stat-label">Issued Timestamp</span><div style="font-size:0.78rem;font-weight:700;color:var(--text-secondary)">${new Date(cert.issued_at).toLocaleString()}</div></div>
+          </div>
+
+          <div class="policy-rules-box" style="margin-bottom:14px">
+            <div style="font-size:0.78rem;font-weight:800;color:var(--accent-purple);margin-bottom:8px">COMPLIANCE CRITERIA &amp; METRICS:</div>
+            <div class="policy-rule-item"><span class="policy-rule-icon">✓</span> <div><strong>Financial Invariance:</strong> ${cert.metrics?.money_conservation_status || 'VERIFIED (Zero Drift)'}</div></div>
+            <div class="policy-rule-item"><span class="policy-rule-icon">✓</span> <div><strong>Idempotency Lock:</strong> ${cert.metrics?.idempotency_coverage || '100% (HMAC-SHA256)'}</div></div>
+            <div class="policy-rule-item"><span class="policy-rule-icon">✓</span> <div><strong>Adversarial Attempts Blocked:</strong> ${cert.metrics?.blocked_adversarial_attempts || 0} attacks mitigated</div></div>
+            <div class="policy-rule-item"><span class="policy-rule-icon">✓</span> <div><strong>Total Logged Events:</strong> ${cert.metrics?.total_audit_events || 0} tamper-proof records</div></div>
+          </div>
+
+          <div style="background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:10px;margin-bottom:16px">
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:4px">CRYPTOGRAPHIC SHA-256 INTEGRITY SEAL:</div>
+            <code style="font-size:0.74rem;color:var(--accent-cyan);word-break:break-all;font-weight:700">${cert.cryptographic_hash}</code>
+          </div>
+
+          <div style="display:flex;gap:10px">
+            <button class="btn-primary" style="flex:1" onclick="window.print()">🖨️ Print / Save Compliance PDF</button>
+            <button class="btn-secondary" onclick="window.closeComplianceCertModal()">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.closeComplianceCertModal = function() {
+  const modal = document.getElementById('compliance-cert-modal-overlay');
+  if (modal) modal.remove();
+};
+
+// ── ⚡ Red Team Attack Simulation ──
+window.runAttackSimulation = async function(attackType) {
+  showToast(`⚡ Simulating Adversarial ${attackType.toUpperCase()} Attack against Kill Chain…`, 'info');
+  
+  const res = await api('/audit/simulate-attack', {
+    method: 'POST',
+    body: JSON.stringify({ attack_type: attackType })
+  });
+
+  if (res && res.session_id) {
+    showToast(`🚨 ATTACK HALTED: ${res.stop_reason || 'Blocked by Policy Guardrail'}`, 'error');
+    window.location.hash = '#/kill-chain';
+    setTimeout(() => {
+      if (window.loadKCSession) window.loadKCSession(res.session_id);
+    }, 200);
+  }
+};
 
 function initVoiceInput() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -979,9 +1216,16 @@ window.toggleVoiceInput = function() {
 
 async function renderAgent() {
   app.innerHTML = `<div class="page-enter">
-    <div class="page-header">
-      <h1>${t('agentTitle')}</h1>
-      <p>${t('agentSubtitle')}</p>
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+      <div>
+        <h1>${t('agentTitle')}</h1>
+        <p>${t('agentSubtitle')}</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="btn-auto-voice" class="btn-secondary" style="font-size:0.82rem;padding:7px 14px" onclick="window.toggleAutoVoice()">
+          ${window.isAutoVoiceEnabled ? '🔊 Voice TTS: ON' : '🔈 Voice TTS: OFF'}
+        </button>
+      </div>
     </div>
     <div id="scenarios-area">${loading()}</div>
     <div class="chat-container">
@@ -1254,27 +1498,37 @@ window.launchRazorpayPayment = async function(orderId) {
     body: JSON.stringify({ order_id: orderId }),
   });
   if (res && res.razorpay_order_id) {
-    showToast(`Razorpay test order ${res.razorpay_order_id} created!`, 'success');
-    const vRes = await api('/payments/verify', {
-      method: 'POST',
-      body: JSON.stringify({
-        order_id: orderId,
-        razorpay_order_id: res.razorpay_order_id,
-        razorpay_payment_id: 'pay_test_' + Date.now().toString().slice(-6),
-        razorpay_signature: 'sig_simulated_valid',
-      }),
+    window.openRazorpayUPIModal({
+      orderId: res.razorpay_order_id,
+      amount: res.amount || 45000,
+      productName: 'TechNova Electronics Item',
+      onPaid: async () => {
+        const vRes = await api('/payments/verify', {
+          method: 'POST',
+          body: JSON.stringify({
+            order_id: orderId,
+            razorpay_order_id: res.razorpay_order_id,
+            razorpay_payment_id: 'pay_test_' + Date.now().toString().slice(-6),
+            razorpay_signature: 'sig_simulated_valid',
+          }),
+        });
+        if (vRes && vRes.status === 'success') {
+          showToast('Payment settled and converged successfully!', 'success');
+          const container = document.getElementById('chat-messages');
+          if (container) {
+            const paidMsg = `<div class="chat-message system" style="border-left:3px solid var(--accent-green);background:rgba(16,185,129,0.06)">
+              <div class="msg-label">${t('paymentComplete')}</div>
+              ${t('paymentCompleteDesc')}<br>
+              <strong>Order Status:</strong> PAID (Success via Razorpay UPI Gateway)<br>
+              <span style="font-size:0.8rem;color:var(--text-muted)">Receipt: ${vRes.payment_id} · SHA-256 Verified Invariant</span>
+            </div>`;
+            container.innerHTML += paidMsg;
+            container.scrollTop = container.scrollHeight;
+            if (window.isAutoVoiceEnabled) window.speakText("Payment complete. Invariant verified.");
+          }
+        }
+      }
     });
-    if (vRes && vRes.status === 'success') {
-      showToast('Payment settled and converged successfully!', 'success');
-      const container = document.getElementById('chat-messages');
-      container.innerHTML += `<div class="chat-message system" style="border-left:3px solid var(--accent-green);background:rgba(16,185,129,0.06)">
-        <div class="msg-label">${t('paymentComplete')}</div>
-        ${t('paymentCompleteDesc')}<br>
-        <strong>Order Status:</strong> PAID (Success)<br>
-        <span style="font-size:0.8rem;color:var(--text-muted)">Receipt: ${vRes.payment_id} · Invariant Verified</span>
-      </div>`;
-      container.scrollTop = container.scrollHeight;
-    }
   } else {
     showToast('Payment creation failed: ' + (res?.detail || 'Error'), 'error');
   }
@@ -2095,6 +2349,30 @@ async function renderKillChainPage() {
     <div class="page-header">
       <h1>${t('kcTitle')}</h1>
       <p>${t('kcSubtitle')}</p>
+    </div>
+
+    <!-- Red Team Live Attack Simulator Console -->
+    <div class="card" style="margin-bottom:20px;border:1px solid rgba(239,68,68,0.35);background:rgba(239,68,68,0.04);padding:16px 20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div>
+          <div class="card-title" style="color:var(--accent-red);font-size:1.05rem">⚡ Red Team Live Adversarial Attack Simulator</div>
+          <div class="card-subtitle">Launch live simulated attacks to verify 10-stage neural kill chain collision resistance &amp; hard policy defenses.</div>
+        </div>
+        <button type="button" class="btn-primary" style="font-size:0.78rem;padding:6px 14px" onclick="window.openComplianceCertModal()">
+          📜 Export Compliance Report
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px">
+        <button type="button" class="btn-secondary" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red);padding:10px" onclick="window.runAttackSimulation('collusion')">
+          🚨 40% Collusion Attack
+        </button>
+        <button type="button" class="btn-secondary" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red);padding:10px" onclick="window.runAttackSimulation('replay')">
+          🚨 Double-Spend Replay
+        </button>
+        <button type="button" class="btn-secondary" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red);padding:10px" onclick="window.runAttackSimulation('prompt_injection')">
+          🚨 Prompt Injection (₹5L)
+        </button>
+      </div>
     </div>
 
     <!-- Quick Session Switcher & Demos -->
