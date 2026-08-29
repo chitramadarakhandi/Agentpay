@@ -210,17 +210,16 @@ export function updateUserUI() {
   if (navLogin?.parentElement) navLogin.parentElement.style.display = 'none';
 
   if (user.role === 'buyer') {
-    // 👤 Buyer sees: Dashboard, Merchants, AI Buyer Agent, My Refunds, Spending Limits, Subscriptions
+    // 👤 Buyer sees: Dashboard, Merchants, AI Buyer Agent, My Refunds, Spending Limits, Agent AutoPay
     if (navMerchants?.parentElement) navMerchants.parentElement.style.display = '';
     if (navAgent?.parentElement) navAgent.parentElement.style.display = '';
     if (navRefunds?.parentElement) navRefunds.parentElement.style.display = '';
     if (navPolicy?.parentElement) navPolicy.parentElement.style.display = '';
     if (navSubscriptions?.parentElement) navSubscriptions.parentElement.style.display = '';
-    if (navRedTeam?.parentElement) navRedTeam.parentElement.style.display = '';
     const lbl = document.getElementById('nav-label-dashboard');
     if (lbl) lbl.textContent = 'Buyer Dashboard';
   } else if (user.role === 'merchant') {
-    // 🏪 Merchant sees: Dashboard, Store Products, Store Policy & Rules, Customer Refunds, Split Pay
+    // 🏪 Merchant sees: Dashboard, Store Products, Store Policy & Rules, Customer Refunds, Split Settlement
     if (navMerchants?.parentElement) navMerchants.parentElement.style.display = '';
     if (navPolicy?.parentElement) navPolicy.parentElement.style.display = '';
     if (navMerchantRefunds?.parentElement) navMerchantRefunds.parentElement.style.display = '';
@@ -228,7 +227,7 @@ export function updateUserUI() {
     const lbl = document.getElementById('nav-label-dashboard');
     if (lbl) lbl.textContent = 'Merchant Dashboard';
   } else if (user.role === 'auditor') {
-    // 🛡️ Auditor sees: SOC Dashboard, Kill Chain, Audit Trail, Trust Engine, Red Team Lab, Split Pay
+    // 🛡️ Auditor sees: SOC Dashboard, 10-Stage Kill Chain, Immutable Audit Trail, Trust Engine, Red Team Lab, Split Settlement
     if (navKillChain?.parentElement) navKillChain.parentElement.style.display = '';
     if (navAudit?.parentElement) navAudit.parentElement.style.display = '';
     if (navPolicy?.parentElement) navPolicy.parentElement.style.display = '';
@@ -457,6 +456,10 @@ async function renderBuyerDashboard(user, health, merchants) {
         <div style="font-weight:700;color:var(--accent-purple)">3. Real-Time Refund Center</div>
         <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Submit natural-language returns and track 6-stage live lifecycle.</div>
       </div>
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/subscriptions'">
+        <div style="font-weight:700;color:var(--accent-cyan)">4. Agent AutoPay (e-Mandates)</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Manage recurring autonomous allowances for AI compute and tools.</div>
+      </div>
     </div>
 
     <!-- Verified Merchants Catalog -->
@@ -524,6 +527,10 @@ async function renderMerchantDashboardView(user, health, merchants) {
       <div class="card" style="cursor:pointer" onclick="window.location.hash='#/policy'">
         <div style="font-weight:700;color:var(--accent-cyan)">🛡️ Store Policy &amp; Guardrails</div>
         <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Set floor prices, approval gates, and autonomous bargaining bounds.</div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/split-pay'">
+        <div style="font-weight:700;color:var(--accent-green)">🔀 Razorpay Route Split Settlement</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">View multi-vendor bundle distribution and track transferred merchant payouts.</div>
       </div>
       <div class="card" style="cursor:pointer" onclick="window.location.hash='#/merchants/merchant-technova'">
         <div style="font-weight:700;color:var(--accent-purple)">📦 Product Catalog &amp; Returns</div>
@@ -594,9 +601,14 @@ async function renderAuditorDashboard(user, health) {
           <div class="card-title" style="color:var(--accent-red)">⚡ Red Team Attack &amp; Adversarial Defense Console</div>
           <div class="card-subtitle">Test live collision resistance, prompt injection, and double-spend attack mitigation on the Kill Chain.</div>
         </div>
-        <button type="button" class="btn-primary" style="padding:6px 14px;font-size:0.78rem" onclick="window.openComplianceCertModal()">
-          📜 Export Compliance Certificate
-        </button>
+        <div style="display:flex;gap:8px">
+          <a href="#/red-team" class="btn-secondary" style="padding:6px 12px;font-size:0.78rem;border-color:rgba(239,68,68,0.4);color:var(--accent-red)">
+            🎯 Full Red Team Lab
+          </a>
+          <button type="button" class="btn-primary" style="padding:6px 14px;font-size:0.78rem" onclick="window.openComplianceCertModal()">
+            📜 Compliance Certificate
+          </button>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px">
         <button type="button" class="btn-secondary" style="border-color:rgba(239,68,68,0.4);color:var(--accent-red);padding:10px" onclick="window.runAttackSimulation('collusion')">
@@ -614,6 +626,10 @@ async function renderAuditorDashboard(user, health) {
     <!-- SOC Auditor Shortcuts -->
     <div class="section-title">🔍 Security &amp; Compliance Tools</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:28px">
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/red-team'">
+        <div style="font-weight:700;color:var(--accent-red)">🎯 Red Team Security Lab</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Free-form adversarial prompt tester, collusion lockout, and replay attack defense.</div>
+      </div>
       <div class="card" style="cursor:pointer" onclick="window.location.hash='#/kill-chain'">
         <div style="font-weight:700;color:var(--accent-cyan)">🔗 Neural Physics Kill Chain Visualizer</div>
         <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Run real-time transaction simulations, drag nodes, and inspect decision explainability.</div>
@@ -622,9 +638,9 @@ async function renderAuditorDashboard(user, health) {
         <div style="font-weight:700;color:var(--accent-purple)">📝 Immutable Audit Trail</div>
         <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Review chronological event stream, actor identities, and policy evaluation results.</div>
       </div>
-      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/policy'">
-        <div style="font-weight:700;color:var(--accent-green)">🛡️ Trust &amp; Simulation Engine</div>
-        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Test dry-run transaction policies and verify single-transaction limits.</div>
+      <div class="card" style="cursor:pointer" onclick="window.location.hash='#/split-pay'">
+        <div style="font-weight:700;color:var(--accent-green)">🔀 Split Settlement Audit</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);margin-top:4px">Verify platform commission retention and mathematical money conservation.</div>
       </div>
     </div>
   </div>`;
