@@ -423,203 +423,246 @@ async def seed():
     await init_db()
 
     async with async_session() as session:
-        # Check if already seeded
         from sqlalchemy import select, func
+        from app.models.subscription import Subscription
+        from app.models.split_payment import SplitPayment
+
         result = await session.execute(select(func.count()).select_from(Merchant))
         count = result.scalar()
-        if count > 0:
-            print(f"Database already seeded ({count} merchants). Skipping.")
-            return
+        if count == 0:
+            print("[SEED] Seeding merchants and products...")
+            user = User(**DEMO_USER)
+            session.add(user)
+            profile = BuyerProfile(**DEMO_BUYER_PROFILE)
+            session.add(profile)
+            for m_data in MERCHANTS:
+                policy_data = m_data.pop("policy")
+                merchant = Merchant(**m_data)
+                session.add(merchant)
+                policy = MerchantPolicy(
+                    id=uid(),
+                    merchant_id=m_data["id"],
+                    allowed_categories={"categories": ["electronics", "laptops", "phones", "accessories"]},
+                    **policy_data,
+                )
+                session.add(policy)
+                products = []
+                products.extend(make_laptops(m_data["id"], m_data["name"]))
+                products.extend(make_phones(m_data["id"], m_data["name"]))
+                products.extend(make_accessories(m_data["id"], m_data["name"]))
+                for p_data in products:
+                    if random.random() < 0.05:
+                        p_data["stock"] = 0
+                    specs = p_data.pop("specifications")
+                    session.add(Product(specifications=specs, **p_data))
+            await session.flush()
+        else:
+            print(f"Merchants already seeded ({count} merchants).")
 
-        print("[SEED] Seeding database...")
-
-        # Create demo user
-        user = User(**DEMO_USER)
-        session.add(user)
-        print(f"  [+] Created demo user: {DEMO_USER['name']}")
-
-        # Create buyer profile
-        profile = BuyerProfile(**DEMO_BUYER_PROFILE)
-        session.add(profile)
-        print(f"  [+] Created buyer profile (limit: Rs.{DEMO_BUYER_PROFILE['single_transaction_limit']:,.0f})")
-
-        # Create merchants and products
-        total_products = 0
-        for m_data in MERCHANTS:
-            policy_data = m_data.pop("policy")
-            merchant = Merchant(**m_data)
-            session.add(merchant)
-
-            policy = MerchantPolicy(
-                id=uid(),
-                merchant_id=m_data["id"],
-                allowed_categories={"categories": ["electronics", "laptops", "phones", "accessories"]},
-                **policy_data,
-            )
-            session.add(policy)
-
-            # Generate products
-            products = []
-            products.extend(make_laptops(m_data["id"], m_data["name"]))
-            products.extend(make_phones(m_data["id"], m_data["name"]))
-            products.extend(make_accessories(m_data["id"], m_data["name"]))
-
-            # Some merchants may be out of stock on certain items
-            for p_data in products:
-                if random.random() < 0.05:  # 5% chance out of stock
-                    p_data["stock"] = 0
-                specs = p_data.pop("specifications")
-                product = Product(specifications=specs, **p_data)
-                session.add(product)
-                total_products += 1
-
-            print(f"  [+] {m_data['name']}: {len(products)} products (max discount: {policy_data['max_discount_percent']}%)")
-
-        await session.flush()
-
-        # Seed sample completed orders for immediate refund testing
+        # Seed sample completed orders if not already present
         from app.models.order import Order
         from app.models.payment import Payment
         from app.models.product import Quote
         from datetime import timedelta
 
         now = datetime.now(timezone.utc)
+        order_check = (await session.execute(select(func.count()).select_from(Order))).scalar()
+        if order_check == 0:
+            laptop = (await session.execute(select(Product).where(Product.category == "laptops"))).scalars().first()
+            phone = (await session.execute(select(Product).where(Product.category == "phones"))).scalars().first()
 
-        # Get first laptop product
-        from sqlalchemy import select
-        laptop = (await session.execute(select(Product).where(Product.category == "laptops"))).scalars().first()
-        phone = (await session.execute(select(Product).where(Product.category == "phones"))).scalars().first()
+            if laptop:
+                order_laptop = Order(
+                    id="order-laptop-demo-01",
+                    buyer_id="demo-user-001",
+                    merchant_id=laptop.merchant_id,
+                    product_id=laptop.id,
+                    session_id="session-demo-laptop-01",
+                    amount=laptop.price,
+                    currency="INR",
+                    status="success",
+                    created_at=now,
+                )
+                pay_laptop = Payment(
+                    id="pay-laptop-demo-01",
+                    order_id=order_laptop.id,
+                    razorpay_payment_id="pay_test_laptop_001",
+                    amount=laptop.price,
+                    currency="INR",
+                    status="success",
+                    created_at=now,
+                )
+                session.add_all([order_laptop, pay_laptop])
 
-        if laptop:
-            # 1. Active eligible laptop order
-            order_laptop = Order(
-                id="order-laptop-demo-01",
-                buyer_id="demo-user-001",
-                merchant_id=laptop.merchant_id,
-                product_id=laptop.id,
-                session_id="session-demo-laptop-01",
-                amount=laptop.price,
-                currency="INR",
-                status="success",
-                created_at=now,
-            )
-            pay_laptop = Payment(
-                id="pay-laptop-demo-01",
-                order_id=order_laptop.id,
-                razorpay_payment_id="pay_test_laptop_001",
-                amount=laptop.price,
-                currency="INR",
-                status="success",
-                created_at=now,
-            )
-            session.add_all([order_laptop, pay_laptop])
+                past_date = now - timedelta(days=20)
+                order_expired = Order(
+                    id="order-expired-demo-03",
+                    buyer_id="demo-user-001",
+                    merchant_id=laptop.merchant_id,
+                    product_id=laptop.id,
+                    session_id="session-demo-expired-03",
+                    amount=laptop.price,
+                    currency="INR",
+                    status="success",
+                    created_at=past_date,
+                )
+                pay_expired = Payment(
+                    id="pay-expired-demo-03",
+                    order_id=order_expired.id,
+                    razorpay_payment_id="pay_test_expired_003",
+                    amount=laptop.price,
+                    currency="INR",
+                    status="success",
+                    created_at=past_date,
+                )
+                session.add_all([order_expired, pay_expired])
 
-            # 2. Expired laptop order (purchased 20 days ago)
-            past_date = now - timedelta(days=20)
-            order_expired = Order(
-                id="order-expired-demo-03",
-                buyer_id="demo-user-001",
-                merchant_id=laptop.merchant_id,
-                product_id=laptop.id,
-                session_id="session-demo-expired-03",
-                amount=laptop.price,
-                currency="INR",
-                status="success",
-                created_at=past_date,
-            )
-            pay_expired = Payment(
-                id="pay-expired-demo-03",
-                order_id=order_expired.id,
-                razorpay_payment_id="pay_test_expired_003",
-                amount=laptop.price,
-                currency="INR",
-                status="success",
-                created_at=past_date,
-            )
-            session.add_all([order_expired, pay_expired])
+            if phone:
+                order_phone = Order(
+                    id="order-phone-demo-02",
+                    buyer_id="demo-user-001",
+                    merchant_id=phone.merchant_id,
+                    product_id=phone.id,
+                    session_id="session-demo-phone-02",
+                    amount=phone.price,
+                    currency="INR",
+                    status="success",
+                    created_at=now,
+                )
+                pay_phone = Payment(
+                    id="pay-phone-demo-02",
+                    order_id=order_phone.id,
+                    razorpay_payment_id="pay_test_phone_002",
+                    amount=phone.price,
+                    currency="INR",
+                    status="success",
+                    created_at=now,
+                )
+                session.add_all([order_phone, pay_phone])
 
-        if phone:
-            # 3. Active eligible phone order
-            order_phone = Order(
-                id="order-phone-demo-02",
-                buyer_id="demo-user-001",
-                merchant_id=phone.merchant_id,
-                product_id=phone.id,
-                session_id="session-demo-phone-02",
-                amount=phone.price,
-                currency="INR",
-                status="success",
-                created_at=now,
-            )
-            pay_phone = Payment(
-                id="pay-phone-demo-02",
-                order_id=order_phone.id,
-                razorpay_payment_id="pay_test_phone_002",
-                amount=phone.price,
-                currency="INR",
-                status="success",
-                created_at=now,
-            )
-            session.add_all([order_phone, pay_phone])
+            await session.flush()
 
-        # Seed full 10-stage kill chain audit trail for session-demo-laptop-01 (Passed)
-        from app.models.audit import AuditLog, AgentAction
-        session_id_passed = "session-demo-laptop-01"
-        stages_passed = [
-            ("request_submitted", "buyer_agent", "Submitted natural language request for AI laptop.", 75000.0, "approved"),
-            ("parse_requirements", "buyer_agent", "Extracted category: laptops, budget: Rs.80,000.", 75000.0, "approved"),
-            ("products_filtered_and_ranked", "buyer_agent", "Filtered 14 products; ranked TechNova Pro 16 as top match.", 75000.0, "approved"),
-            ("quote_generated", "merchant_agent", "TechNova issued Quote with 5% discount (Rs.71,250).", 71250.0, "approved"),
-            ("negotiation_completed", "merchant_agent", "Autonomous negotiation reached consensus at Rs.71,250.", 71250.0, "approved"),
-            ("policy_check", "policy_engine", "Single limit Rs.80,000 and Daily limit Rs.150,000 passed.", 71250.0, "approved"),
-            ("order_created", "system", "Human approved transaction and created order.", 71250.0, "approved"),
-            ("payment_intent_created", "payment_service", "Razorpay payment intent created.", 71250.0, "approved"),
-            ("payment_verified_and_settled", "razorpay", "Dual convergence verified: signature valid and funds captured.", 71250.0, "approved"),
-        ]
-        for action, actor, reason, amt, status_val in stages_passed:
-            session.add(AuditLog(
-                id=str(uuid.uuid4()),
-                session_id=session_id_passed,
-                actor=actor,
-                action=action,
-                reason=reason,
-                amount=amt,
-                approval_status=status_val,
-                policy_result={"allowed": True, "explainability_score": 98, "arithmetic_breakdown": ["Budget: Rs.80,000 >= Price: Rs.71,250", "Daily Limit: Rs.150,000 remaining"]},
-                metadata_json={"request_id": f"req-{uuid.uuid4().hex[:8]}"},
-                timestamp=now,
+        # Seed Agent AutoPay Subscriptions if not already present
+        sub_check = (await session.execute(select(func.count()).select_from(Subscription))).scalar()
+        if sub_check == 0:
+            print("[SEED] Seeding demo subscriptions...")
+            from app.models.subscription import SubscriptionCharge
+            sub_cloud = Subscription(
+                id="sub-demo-cloud-001",
+                user_id="demo-user-001",
+                plan_name="Cloud Compute Credits",
+                description="Monthly GPU compute credits for AI/ML training workloads on AWS/GCP.",
+                amount_per_cycle=5000.0,
+                cycle="monthly",
+                max_cycles=12,
+                current_cycle=2,
+                status="active",
+                mandate_id="mandate_test_cloud_001",
+                razorpay_subscription_id="sub_test_cloud_001",
+                total_charged=10000.0,
+            )
+            sub_api = Subscription(
+                id="sub-demo-api-002",
+                user_id="demo-user-001",
+                plan_name="API Gateway Access",
+                description="Monthly API access for production ML inference endpoints.",
+                amount_per_cycle=2000.0,
+                cycle="monthly",
+                max_cycles=6,
+                current_cycle=1,
+                status="active",
+                mandate_id="mandate_test_api_002",
+                razorpay_subscription_id="sub_test_api_002",
+                total_charged=2000.0,
+            )
+            sub_paused = Subscription(
+                id="sub-demo-paused-003",
+                user_id="demo-user-001",
+                plan_name="Dev Tools Suite",
+                description="JetBrains IDE license bundle (paused for budget review).",
+                amount_per_cycle=1500.0,
+                cycle="monthly",
+                max_cycles=12,
+                current_cycle=3,
+                status="paused",
+                mandate_id="mandate_test_dev_003",
+                razorpay_subscription_id="sub_test_dev_003",
+                total_charged=4500.0,
+            )
+            session.add_all([sub_cloud, sub_api, sub_paused])
+
+            for cycle_num in [1, 2]:
+                session.add(SubscriptionCharge(
+                    id=f"charge-cloud-{cycle_num}",
+                    subscription_id="sub-demo-cloud-001",
+                    cycle_number=cycle_num,
+                    amount=5000.0,
+                    status="success",
+                    razorpay_payment_id=f"pay_sub_cloud_{cycle_num:03d}",
+                ))
+            session.add(SubscriptionCharge(
+                id="charge-api-1",
+                subscription_id="sub-demo-api-002",
+                cycle_number=1,
+                amount=2000.0,
+                status="success",
+                razorpay_payment_id="pay_sub_api_001",
             ))
+            await session.flush()
 
-        # Seed kill chain for session-demo-expired-03 (Blocked at policy)
-        session_id_blocked = "session-demo-expired-03"
-        stages_blocked = [
-            ("request_submitted", "buyer_agent", "User requested laptop purchase exceeding policy.", 200000.0, "approved"),
-            ("parse_requirements", "buyer_agent", "Extracted budget: Rs.200,000.", 200000.0, "approved"),
-            ("products_filtered_and_ranked", "buyer_agent", "Found high-end workstation.", 195000.0, "approved"),
-            ("quote_generated", "merchant_agent", "Merchant issued quote at Rs.190,000.", 190000.0, "approved"),
-            ("policy_check", "policy_engine", "BLOCKED: Amount Rs.190,000 exceeds single transaction limit Rs.80,000.", 190000.0, "rejected"),
-        ]
-        for action, actor, reason, amt, status_val in stages_blocked:
-            session.add(AuditLog(
-                id=str(uuid.uuid4()),
-                session_id=session_id_blocked,
-                actor=actor,
-                action=action,
-                reason=reason,
-                amount=amt,
-                approval_status=status_val,
-                policy_result={"allowed": status_val == "approved", "blocked": status_val == "rejected", "explainability_score": 99, "arithmetic_breakdown": ["Deficit: Rs.190,000 > Single limit Rs.80,000 by Rs.110,000"]},
-                metadata_json={"request_id": f"req-{uuid.uuid4().hex[:8]}"},
-                timestamp=now,
+        # Seed Razorpay Route Split Payment if not already present
+        split_check = (await session.execute(select(func.count()).select_from(SplitPayment))).scalar()
+        if split_check == 0:
+            print("[SEED] Seeding demo split payment...")
+            merchants = (await session.execute(select(Merchant))).scalars().all()
+            m1_name = merchants[0].name if merchants else "TechNova"
+            m1_id = merchants[0].id if merchants else "m1"
+            m2_name = merchants[1].name if len(merchants) > 1 else "ElectroMart"
+            m2_id = merchants[1].id if len(merchants) > 1 else "m2"
+
+            split = SplitPayment(
+                id="split-demo-001",
+                session_id="session-split-demo-001",
+                total_amount=85000.0,
+                platform_fee_percent=5.0,
+                platform_fee_amount=4250.0,
+                net_merchant_amount=80750.0,
+                status="settled",
+            )
+            session.add(split)
+            session.add(SplitSettlement(
+                id="settle-demo-1",
+                split_payment_id="split-demo-001",
+                merchant_id=m1_id,
+                merchant_name=m1_name,
+                item_description="ProBook X1 Laptop",
+                amount=56525.0,
+                percent_share=66.5,
+                status="settled",
+                razorpay_transfer_id="trf_test_demo_001a",
+                settled_at=now,
             ))
+            session.add(SplitSettlement(
+                id="settle-demo-2",
+                split_payment_id="split-demo-001",
+                merchant_id=m2_id,
+                merchant_name=m2_name,
+                item_description='27" 4K Monitor + Accessories',
+                amount=24225.0,
+                percent_share=28.5,
+                status="settled",
+                razorpay_transfer_id="trf_test_demo_001b",
+                settled_at=now,
+            ))
+            await session.flush()
 
         await session.commit()
-        print(f"\n[OK] Seeded: {len(MERCHANTS)} merchants, {total_products} products")
-        print(f"     Sample Orders ready for Refund & Kill Chain testing:")
-        print(f"       * session-demo-laptop-01  (All 10 Stages PASSED)")
-        print(f"       * session-demo-expired-03 (Stage 7 BLOCKED - Policy Violation)")
-        print(f"     Demo user: {DEMO_USER['email']}")
+
+        await session.commit()
+        print(f"\n[OK] Database seeding check complete!")
+        print(f"     Agent AutoPay Subscriptions & Razorpay Route Split Payments ready.")
 
 
 if __name__ == "__main__":
     asyncio.run(seed())
+

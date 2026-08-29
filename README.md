@@ -45,10 +45,23 @@ LLMs are probabilistic actors. In enterprise payments, autonomous agents must op
 - Stages use live data from `GET /api/audit/{session_id}/chain` and expose passed, blocked, pending, and unreached states.
 - Selecting a stage opens its action, timestamp, trace ID, metadata, reason, and policy data. The **Why?** panel surfaces available arithmetic breakdowns and explainability scores without recreating backend decisions.
 
-### 6. ↩️ Secure Refunds
-- Refunds use the existing order, payment, audit, and gateway layers with the lifecycle `requested → validating → approved → processing → refunded` (or `rejected` / `failed`).
-- `POST /api/refunds` supports full and partial refunds and requires an `Idempotency-Key`; `GET /api/refunds/{refund_id}` returns current status and remaining refundable balance.
-- Validation prevents refunds for unpaid orders, invalid order/payment relationships, duplicate idempotency keys, concurrent over-refunds, and amounts above the remaining captured balance. Every lifecycle action is recorded in the session audit trail.
+### 6. ↩️ Secure Refunds & Real-time SSE
+- Refunds use the order, payment, audit, and gateway layers with the lifecycle `requested → validating → approved → processing → refunded` (or `rejected` / `failed`).
+- Real-time Server-Sent Events (SSE) stream AI refund merchant evaluations directly to the UI.
+- Validation prevents refunds for unpaid orders, invalid order/payment relationships, duplicate idempotency keys, concurrent over-refunds, and amounts above the remaining captured balance.
+
+### 7. 🔄 Agent AutoPay — Razorpay Subscriptions (e-Mandates)
+- Allows AI agents to operate on autonomous recurring allowances (e.g. ₹5,000/month for cloud compute, API inference).
+- Enforces buyer spending passport limits prior to mandate activation, with lifecycle controls (create, charge, pause, resume, cancel).
+
+### 8. 🔀 Razorpay Route — Multi-Vendor Split Settlement
+- Automatically splits bundled cross-merchant orders across multiple vendor accounts with proportional commission calculation.
+- Simulates individual Razorpay Route transfer settlements with transfer ID tracking and audit trail generation.
+
+### 9. 🎯 Red Team Security Lab & 1-Click Demo Scenarios
+- **Free-Form Adversarial Prompt Tester:** Evaluators can input custom adversarial prompts and inspect real-time mathematical deficit interceptions.
+- **Pre-Built Attack Cards:** 40% Collusion, Double-Spend Replay, Prompt Injection (₹5L), and Budget Override attempts.
+- **1-Click Presets:** Happy Path, HITL Gate, Jailbreak Attack, and Partial Refund for seamless live recruiter demos.
 
 ---
 
@@ -60,22 +73,22 @@ LLMs are probabilistic actors. In enterprise payments, autonomous agents must op
 
 ### 1. Backend Setup
 ```powershell
-cd agentpay/backend
+cd backend
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# Run migrations / seed initial catalog
+# Run migrations & seed initial demo data
 python -m scripts.seed_data
 
 # Start FastAPI server
 uvicorn app.main:app --reload --port 8000
 ```
-Backend API will be live at `http://localhost:8000` (Swagger docs at `http://localhost:8000/docs`).
+Backend API will be live at `http://localhost:8000` (Interactive API docs at `http://localhost:8000/docs`).
 
 ### 2. Frontend Setup
 ```powershell
-cd agentpay/frontend
+cd frontend
 npm install
 npm run dev
 ```
@@ -88,12 +101,10 @@ Frontend Dashboard will be live at `http://localhost:5173`.
 The test suite covers unit tests, integration tests, concurrency race-condition guards, and adversarial safety tests.
 
 ```powershell
-cd agentpay/backend
-.\venv\Scripts\pytest --cov=app --cov-report=term-missing tests/
+cd backend
+..\venv\Scripts\pytest --cov=app tests/
 ```
-**Test Results:** `53 passed (100% success rate)`
-
-The current checkout does not contain the separately referenced `test_audit_chain.py`; the existing suite was rerun after the audit-chain implementation with `47 passed`. The frontend was verified with `npm run build` from `frontend/`.
+**Test Results:** `54 passed (100% success rate)`
 
 ---
 

@@ -49,7 +49,7 @@ app.add_middleware(
 
 
 # Import and register routes
-from app.api.routes import buyer, merchants, orders, payments, policy, audit, analytics, demo, reconciliation, refunds, webhooks  # noqa: E402
+from app.api.routes import buyer, merchants, orders, payments, policy, audit, analytics, demo, reconciliation, refunds, webhooks, subscriptions, split_payments  # noqa: E402
 
 app.include_router(buyer.router, prefix="/api/buyer", tags=["buyer"])
 app.include_router(merchants.router, prefix="/api/merchants", tags=["merchants"])
@@ -62,6 +62,8 @@ app.include_router(demo.router, prefix="/api/demo", tags=["demo"])
 app.include_router(reconciliation.router, prefix="/api/reconciliation", tags=["reconciliation"])
 app.include_router(refunds.router, prefix="/api/refunds", tags=["refunds"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["webhooks"])
+app.include_router(subscriptions.router, prefix="/api/subscriptions", tags=["subscriptions"])
+app.include_router(split_payments.router, prefix="/api/split-payments", tags=["split-payments"])
 
 
 @app.get("/api/health")
@@ -85,5 +87,8 @@ async def health_check():
             "refund_sse_streaming": True,
             "ai_refund_agents": True,
             "refund_state_machine": True,
+            "agent_autopay_subscriptions": True,
+            "razorpay_route_split_payments": True,
+            "red_team_playground": True,
         }
     }

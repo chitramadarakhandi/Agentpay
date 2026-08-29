@@ -9,6 +9,8 @@ from app.models.audit import AgentAction, AuditLog, PolicyViolation
 from app.models.idempotency import IdempotencyRecord
 from app.models.refund import Refund
 from app.models.refund_event import RefundEvent, WebhookEvent
+from app.models.subscription import Subscription, SubscriptionCharge
+from app.models.split_payment import SplitPayment, SplitSettlement
 
 __all__ = [
     "User",
@@ -27,4 +29,8 @@ __all__ = [
     "Refund",
     "RefundEvent",
     "WebhookEvent",
+    "Subscription",
+    "SubscriptionCharge",
+    "SplitPayment",
+    "SplitSettlement",
 ]
